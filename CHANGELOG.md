@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.1
+- Small tile like the meter bar tile: the name at the left, the price with its unit at the right.
+
 ## 0.5.0
 - GE-Spot as a source: a third tile reads `today_interval_prices` and `tomorrow_interval_prices` (the `value` of each interval).
 

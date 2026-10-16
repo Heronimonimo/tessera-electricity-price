@@ -374,6 +374,10 @@ class PriceTile : public tessera::Tile {
     chart_on_ = c.columns * c.rows >= 2 && height_ - head_ - gap >= axis + ui::px(36);
     value_ = ui::label(c.parent, Font::VALUE, theme::INK);
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
+    if (!chart_on_) {
+      name_text_ = c.name ? c.name : "";
+      name_ = ui::label(c.parent, Font::TITLE, theme::MUTED);
+    }
     if (chart_on_) {
       chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, 12, cents_);
       return;
@@ -433,19 +437,29 @@ class PriceTile : public tessera::Tile {
       lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - small_h - ui::px(2));
       chart_.update(ok ? prices_ : Prices(), slot_now(epoch, prices_.per), epoch);
     } else {
-      // The meter's short card: the price and the unit on one row, the cells under them.
+      // The meter's short card: the name at the left and the price with its unit at the right, in one row, the
+      // cells under them.
       const int room = height_ - cells_h_ - ui::px(6);
-      Font face = Font::TITLE;
-      for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE})
-        if (ui::text_width(big, f) + gap + ui::text_width(small, Font::BODY) <= width_ && ui::line_height(f) <= room) { face = f; break; }
+      const std::string words = small.empty() ? big : big + " " + small;
+      Font face = Font::BODY_LARGE;
+      for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE})
+        if (ui::text_width(words, f) <= width_ * 60 / 100 && ui::line_height(f) <= room) { face = f; break; }
       ui::set_font(value_, face);
-      ui::set_text(value_, big);
+      ui::set_text(value_, words);
+      ui::set_text(unit_, "");
       const int vh = ui::line_height(face);
-      const int vw = std::min(width_, ui::text_width(big, face));
+      const int vw = std::min(width_ * 60 / 100, ui::text_width(words, face));
       lv_obj_set_size(value_, std::max(1, vw + 2), vh);
-      lv_obj_set_pos(value_, 0, 0);
-      lv_obj_set_size(unit_, std::max(1, width_ - vw - gap), small_h);
-      lv_obj_set_pos(unit_, vw + gap, std::max(0, vh - small_h - ui::px(2)));
+      lv_obj_set_pos(value_, width_ - vw - 2, 0);
+      Font nface = Font::BODY;
+      for (Font f : {Font::TITLE, Font::BODY_LARGE, Font::BODY})
+        if (ui::text_width(name_text_, f) <= width_ - vw - ui::px(8)) { nface = f; break; }
+      ui::set_font(name_, nface);
+      ui::set_text(name_, name_text_);
+      const int nh = ui::line_height(nface);
+      lv_obj_set_size(name_, std::max(1, width_ - vw - ui::px(8)), nh);
+      lv_obj_set_pos(name_, 0, (vh - nh) * 8 / 10);
+      ui::set_color(name_, theme::MUTED);
       // Each cell wears the colour of its place in the range, as the graph's bars do; the cells past the price are
       // a dim tint of theirs.
       const bool known = ok && prices_.days > 0 && prices_.hi > prices_.lo;
@@ -508,14 +522,14 @@ class PriceTile : public tessera::Tile {
   Shared *shared_;
   int sel_ = -1;
   uint32_t sel_until_ = 0;
-  std::string entity_;
+  std::string entity_, name_text_;
   Prices prices_;
   Chart chart_;
   bool cents_ = false, chart_on_ = false;
   int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, tile_ = -1;
   int cells_n_ = 0, cells_h_ = 0, cell_gap_ = 1;
   uint32_t last_epoch_ = 0;
-  lv_obj_t *value_{}, *unit_{}, *cells_[MAX_CELLS]{};
+  lv_obj_t *value_{}, *unit_{}, *name_{}, *cells_[MAX_CELLS]{};
 };
 
 // ---- The card: the price now, the day's lowest, highest and average, and the graph of today and tomorrow ----
