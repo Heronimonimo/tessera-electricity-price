@@ -166,9 +166,9 @@ class Chart {
 
   // The bar under a finger at x, y (the chart's own pixels), or -1.
   int bar_at(int x, int y) const {
-    if (bars_now_ <= 0 || slot_w_ <= 0 || y < ay_ - label_h_ || y > ay_ + ah_ + label_h_) return -1;
-    const int i = (x - ax_ - off_) / slot_w_;
-    return x >= ax_ + off_ && i >= 0 && i < bars_now_ && !std::isnan(value_[i]) ? i : -1;
+    if (bars_now_ <= 0 || y < ay_ - label_h_ || y > ay_ + ah_ + label_h_ || x < ax_ || x >= ax_ + aw_) return -1;
+    const int i = static_cast<int>(static_cast<long long>(x - ax_) * bars_now_ / aw_);
+    return i >= 0 && i < bars_now_ && !std::isnan(value_[i]) ? i : -1;
   }
   float bar_value(int i) const { return value_[i]; }
   // The first and the one past the last slot (of all the days) that bar i stands for.
@@ -257,11 +257,10 @@ class Chart {
     }
 
     // The bars, from the line of zero.
+    // The bars share the whole width of the plot, also when it does not divide by their number.
     const int slot = aw_ / bars;
     const int gap = slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);
-    const int off = (aw_ - slot * bars) / 2;
-    slot_w_ = slot;
-    off_ = off;
+    const auto edge_x = [&](int i) { return static_cast<int>(static_cast<long long>(aw_) * i / bars); };
     const int zero = ay_ + static_cast<int>(std::lround(ah_ * top / range));
     const int now_bar = now < 0 ? -1 : now / group;
     for (int i = 0; i < bars_n_; i++) {
@@ -272,8 +271,8 @@ class Chart {
       }
       lv_obj_clear_flag(bar, LV_OBJ_FLAG_HIDDEN);
       const int len = std::max(2, static_cast<int>(std::lround(std::fabs(v[i]) / range * ah_)));
-      lv_obj_set_size(bar, std::max(1, slot - gap), len);
-      lv_obj_set_pos(bar, ax_ + off + i * slot, v[i] >= 0 ? zero - len : zero);
+      lv_obj_set_size(bar, std::max(1, edge_x(i + 1) - edge_x(i) - gap), len);
+      lv_obj_set_pos(bar, ax_ + edge_x(i), v[i] >= 0 ? zero - len : zero);
       if (i == sel_) {
         ui::set_fill(bar, Tone::NORMAL, theme::INK);
       } else if (i < now_bar) {
@@ -288,7 +287,7 @@ class Chart {
 
     // The line between the days.
     if (p.days == 2) {
-      mid_x_ = ax_ + off + (p.per / group) * slot;
+      mid_x_ = ax_ + edge_x(p.per / group);
       lv_obj_clear_flag(divider_, LV_OBJ_FLAG_HIDDEN);
       lv_obj_set_size(divider_, 1, ah_);
       lv_obj_set_pos(divider_, mid_x_, ay_);
@@ -307,7 +306,7 @@ class Chart {
     const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
     const int hours = 24 * p.days, between = ui::px(ui::large() ? 10 : 6);
     const int sample = ui::text_width(tessera::clock_text(midnight + 8 * 3600), Font::BODY);
-    const float per_hour = static_cast<float>(slot * bars) / hours;
+    const float per_hour = static_cast<float>(aw_) / hours;
     int every = 12;
     for (int h : {1, 2, 3, 4, 6, 12})
       if (hours / h <= times_n_ && (sample + between) <= h * per_hour) { every = h; break; }
@@ -315,7 +314,7 @@ class Chart {
     for (int h = 0; h < hours && k < times_n_; h += every) {
       const std::string words = tessera::clock_text(midnight + (h % 24) * 3600);
       const int tw = ui::text_width(words, Font::BODY);
-      const int cx = ax_ + off + static_cast<int>(std::lround(per_hour * h));
+      const int cx = ax_ + static_cast<int>(std::lround(per_hour * h));
       const int left = std::max(ax_ - ui::px(ui::large() ? 8 : 4), cx - tw / 2);
       if (left <= last + between || left + tw > ax_ + aw_) continue;
       lv_obj_clear_flag(marks_[k], LV_OBJ_FLAG_HIDDEN);
@@ -346,7 +345,7 @@ class Chart {
   bool cents_ = false;
   int x_ = 0, ax_ = 0, ay_ = 0, aw_ = 1, ah_ = 1, label_w_ = 0, label_h_ = 0, time_y_ = 0, mark_y_ = 0, mark_h_ = 0;
   int bars_n_ = 0, times_n_ = 0, mid_x_ = 0;
-  int group_ = 1, bars_now_ = 0, slot_w_ = 0, off_ = 0, sel_ = -1;
+  int group_ = 1, bars_now_ = 0, sel_ = -1;
   float value_[MAX_SLOTS]{};
 };
 

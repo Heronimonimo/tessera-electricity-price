@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.3
+- Graph: the bars share the whole width of the plot. Before, each bar had a whole number of pixels, so on a screen where 192 quarters did not divide the width the bars took only part of it.
+
 ## 0.6.2
 - Card: the highest and the lowest price only count from now on, tomorrow included once it is known. A time slot of tomorrow says "Tomorrow" in front.
 
