@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4
+- Store picture (store.png) made on the bench.
+- Fixes found by the first real build: the GE-Spot tile is registered, no `strlcpy`, the Tomorrow label stays inside the card.
+- The name keeps the tile-label font, the price takes what is left.
+
 ## 0.5.3
 - The graph shows from 2 wide and 2 high; smaller tiles show the price with the meter bar.
 

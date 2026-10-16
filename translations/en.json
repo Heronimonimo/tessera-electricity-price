@@ -13,7 +13,7 @@
   },
   "app": {
     "name": "Electricity price",
-    "summary": "The electricity price now, with a graph of today and tomorrow, from a Nord Pool or ENTSO-e sensor.",
+    "summary": "The electricity price now, with a graph of today and tomorrow, from a Nord Pool, ENTSO-e or GE-Spot sensor.",
     "tile_name_nordpool": "Electricity price (Nord Pool)",
     "tile_name_entsoe": "Electricity price (ENTSO-e)",
     "tile_name_gespot": "Electricity price (GE-Spot)",

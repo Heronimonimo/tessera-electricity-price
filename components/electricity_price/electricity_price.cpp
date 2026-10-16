@@ -64,7 +64,7 @@ static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
     p.current = v * scale;
     p.has_current = true;
   }
-  strlcpy(p.unit, data["attributes"]["unit_of_measurement"] | "", sizeof(p.unit));
+  snprintf(p.unit, sizeof(p.unit), "%s", data["attributes"]["unit_of_measurement"] | "");
   JsonObjectConst a = data["attributes"];
   const int today = a["today"].as<JsonArrayConst>().size();
   p.per = today >= 90 ? 96 : 24;
@@ -472,19 +472,31 @@ class PriceTile : public tessera::Tile {
   // The name at the left and the price with its unit at the right in one row, `room` high.
   void place_row(const std::string &big, const std::string &small, const std::string &name, int room) {
     const std::string words = small.empty() ? big : big + " " + small;
-    Font face = Font::BODY_LARGE;
-    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE})
-      if (ui::text_width(words, f) <= width_ * 60 / 100 && ui::line_height(f) <= room) { face = f; break; }
+    // The name keeps the tile-label face as the meter bar writes it; the price takes the largest face that leaves the
+    // name its room, and only a name that fits no face steps down.
+    const int apart = ui::px(8);
+    Font face = Font::BODY_LARGE, nface = Font::BODY;
+    bool settled = false;
+    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE}) {
+      if (ui::text_width(words, f) > width_ * 60 / 100 || ui::line_height(f) > room) continue;
+      if (name.empty() || ui::text_width(name, Font::TITLE) <= width_ - ui::text_width(words, f) - apart) {
+        face = f;
+        settled = true;
+        break;
+      }
+    }
+    if (!settled)
+      for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE})
+        if (ui::text_width(words, f) <= width_ * 60 / 100 && ui::line_height(f) <= room) { face = f; break; }
+    const int vh = ui::line_height(face);
+    const int vw = std::min(width_ * 60 / 100, ui::text_width(words, face));
+    for (Font f : {Font::TITLE, Font::BODY_LARGE, Font::BODY})
+      if (ui::text_width(name, f) <= width_ - vw - apart) { nface = f; break; }
     ui::set_font(value_, face);
     ui::set_text(value_, words);
     ui::set_text(unit_, "");
-    const int vh = ui::line_height(face);
-    const int vw = std::min(width_ * 60 / 100, ui::text_width(words, face));
     lv_obj_set_size(value_, std::max(1, vw + 2), vh);
     lv_obj_set_pos(value_, width_ - vw - 2, (room - vh) / 2);
-    Font nface = Font::BODY;
-    for (Font f : {Font::TITLE, Font::BODY_LARGE, Font::BODY})
-      if (ui::text_width(name, f) <= width_ - vw - ui::px(8)) { nface = f; break; }
     ui::set_font(name_, nface);
     ui::set_text(name_, name);
     const int nh = ui::line_height(nface);
@@ -621,7 +633,11 @@ class PriceCard : public tessera::Card {
     const bool second = graph && prices_.days == 2 && chart_.midnight_x() > 0;
     ui::set_text(tomorrow_, second ? plugin_->text("tomorrow") : "");
     ui::set_color(tomorrow_, theme::SUBTLE);
-    if (second) lv_obj_set_pos(tomorrow_, chart_.midnight_x() + ui::px(ui::large() ? 8 : 4), lv_obj_get_y(today_));
+    if (second) {
+      const int tx = chart_.midnight_x() + ui::px(ui::large() ? 8 : 4);
+      lv_obj_set_pos(tomorrow_, tx, lv_obj_get_y(today_));
+      lv_obj_set_width(tomorrow_, std::max(1, width_ - tx));
+    }
   }
 
   // A tap on a bar shows it; a tap on the one shown, or elsewhere, puts the card back.
@@ -688,6 +704,7 @@ void ElectricityPrice::setup() {
   // Two tiles for the two integrations: the inspector lists only sensors that have the attributes of that one.
   add_tile("nordpool", [this]() { return new PriceTile(this, shared_); });
   add_tile("entsoe", [this]() { return new PriceTile(this, shared_); });
+  add_tile("gespot", [this]() { return new PriceTile(this, shared_); });
   add_card("prices", [this]() { return new PriceCard(this, shared_); }, false);
 }
 
