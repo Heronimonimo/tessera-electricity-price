@@ -1,0 +1,38 @@
+# Electricity price: the price of power now as a tile, and the graph of today and tomorrow on bigger tiles and on a
+# card. It reads the sensor of Nord Pool (HACS `nordpool`) or of ENTSO-e (`entsoe`) from Home Assistant.
+id: electricity_price
+version: 0.1.0
+api: "0.9"
+icon: flash
+maintainer: Heronimonimo
+license: MIT
+stage: beta
+topics: [energy]
+requires:
+  esphome: 2026.6.2
+boards: any
+flash_kb: 10
+
+tiles:
+  - id: price
+    name: tile_name
+    icon: flash
+    sizes: { min: 1x1, max: 4x3 }
+    memory: 6000
+    domains: [sensor]
+    # Nord Pool: raw_today and raw_tomorrow, objects with a value. ENTSO-e: prices_today and prices_tomorrow, objects
+    # with a price. A source that is not there gives an empty list, so one tile reads both.
+    attributes: [unit_of_measurement]
+    fields:
+      np_today: { path: "raw_today[*].value", as: numbers }
+      np_tomorrow: { path: "raw_tomorrow[*].value", as: numbers }
+      en_today: { path: "prices_today[*].price", as: numbers }
+      en_tomorrow: { path: "prices_tomorrow[*].price", as: numbers }
+    example: tile_example
+    preview: { title: "{name}", value: "{state}" }
+    options:
+      - { id: cents, kind: toggle, default: false, label: cents, hint: cents_hint }
+      - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 3, label: decimals, hint: decimals_hint }
+
+cards:
+  - { id: prices, name: card_name }

@@ -1,0 +1,244 @@
+# What tools/preview.py shows: a Nord Pool sensor with today and tomorrow, and an ENTSO-e sensor with today only.
+tiles:
+  - tile: price
+    name: Nord Pool
+    entity: sensor.nordpool
+  - tile: price
+    name: ENTSO-e
+    entity: sensor.entsoe
+    options: { cents: true, fixed: 1 }
+
+states:
+  sensor.nordpool:
+    state: "0.27"
+    attributes:
+      friendly_name: Nord Pool
+      unit_of_measurement: EUR/kWh
+      raw_today:
+        - { start: x, end: y, value: 0.223 }
+        - { start: x, end: y, value: 0.223 }
+        - { start: x, end: y, value: 0.223 }
+        - { start: x, end: y, value: 0.223 }
+        - { start: x, end: y, value: 0.204 }
+        - { start: x, end: y, value: 0.204 }
+        - { start: x, end: y, value: 0.204 }
+        - { start: x, end: y, value: 0.204 }
+        - { start: x, end: y, value: 0.188 }
+        - { start: x, end: y, value: 0.188 }
+        - { start: x, end: y, value: 0.188 }
+        - { start: x, end: y, value: 0.188 }
+        - { start: x, end: y, value: 0.181 }
+        - { start: x, end: y, value: 0.181 }
+        - { start: x, end: y, value: 0.181 }
+        - { start: x, end: y, value: 0.181 }
+        - { start: x, end: y, value: 0.179 }
+        - { start: x, end: y, value: 0.179 }
+        - { start: x, end: y, value: 0.179 }
+        - { start: x, end: y, value: 0.179 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.21 }
+        - { start: x, end: y, value: 0.21 }
+        - { start: x, end: y, value: 0.21 }
+        - { start: x, end: y, value: 0.21 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.29 }
+        - { start: x, end: y, value: 0.29 }
+        - { start: x, end: y, value: 0.29 }
+        - { start: x, end: y, value: 0.29 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.24 }
+        - { start: x, end: y, value: 0.24 }
+        - { start: x, end: y, value: 0.24 }
+        - { start: x, end: y, value: 0.24 }
+        - { start: x, end: y, value: 0.22 }
+        - { start: x, end: y, value: 0.22 }
+        - { start: x, end: y, value: 0.22 }
+        - { start: x, end: y, value: 0.22 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.19 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.2 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.28 }
+        - { start: x, end: y, value: 0.28 }
+        - { start: x, end: y, value: 0.28 }
+        - { start: x, end: y, value: 0.28 }
+        - { start: x, end: y, value: 0.34 }
+        - { start: x, end: y, value: 0.34 }
+        - { start: x, end: y, value: 0.34 }
+        - { start: x, end: y, value: 0.34 }
+        - { start: x, end: y, value: 0.38 }
+        - { start: x, end: y, value: 0.38 }
+        - { start: x, end: y, value: 0.38 }
+        - { start: x, end: y, value: 0.38 }
+        - { start: x, end: y, value: 0.36 }
+        - { start: x, end: y, value: 0.36 }
+        - { start: x, end: y, value: 0.36 }
+        - { start: x, end: y, value: 0.36 }
+        - { start: x, end: y, value: 0.31 }
+        - { start: x, end: y, value: 0.31 }
+        - { start: x, end: y, value: 0.31 }
+        - { start: x, end: y, value: 0.31 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.27 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.25 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+        - { start: x, end: y, value: 0.23 }
+      raw_tomorrow:
+        - { value: 0.253 }
+        - { value: 0.253 }
+        - { value: 0.253 }
+        - { value: 0.253 }
+        - { value: 0.234 }
+        - { value: 0.234 }
+        - { value: 0.234 }
+        - { value: 0.234 }
+        - { value: 0.218 }
+        - { value: 0.218 }
+        - { value: 0.218 }
+        - { value: 0.218 }
+        - { value: 0.211 }
+        - { value: 0.211 }
+        - { value: 0.211 }
+        - { value: 0.211 }
+        - { value: 0.209 }
+        - { value: 0.209 }
+        - { value: 0.209 }
+        - { value: 0.209 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.24 }
+        - { value: 0.24 }
+        - { value: 0.24 }
+        - { value: 0.24 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.32 }
+        - { value: 0.32 }
+        - { value: 0.32 }
+        - { value: 0.32 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.27 }
+        - { value: 0.27 }
+        - { value: 0.27 }
+        - { value: 0.27 }
+        - { value: 0.25 }
+        - { value: 0.25 }
+        - { value: 0.25 }
+        - { value: 0.25 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.22 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.23 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+        - { value: 0.31 }
+        - { value: 0.31 }
+        - { value: 0.31 }
+        - { value: 0.31 }
+        - { value: 0.37 }
+        - { value: 0.37 }
+        - { value: 0.37 }
+        - { value: 0.37 }
+        - { value: 0.41 }
+        - { value: 0.41 }
+        - { value: 0.41 }
+        - { value: 0.41 }
+        - { value: 0.39 }
+        - { value: 0.39 }
+        - { value: 0.39 }
+        - { value: 0.39 }
+        - { value: 0.34 }
+        - { value: 0.34 }
+        - { value: 0.34 }
+        - { value: 0.34 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.3 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.28 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+        - { value: 0.26 }
+  sensor.entsoe:
+    state: "0.27"
+    attributes:
+      friendly_name: ENTSO-e
+      unit_of_measurement: EUR/kWh
+      prices_today:
+        - { time: x, price: 0.223 }
+        - { time: x, price: 0.204 }
+        - { time: x, price: 0.188 }
+        - { time: x, price: 0.181 }
+        - { time: x, price: 0.179 }
+        - { time: x, price: 0.19 }
+        - { time: x, price: 0.21 }
+        - { time: x, price: 0.25 }
+        - { time: x, price: 0.29 }
+        - { time: x, price: 0.27 }
+        - { time: x, price: 0.24 }
+        - { time: x, price: 0.22 }
+        - { time: x, price: 0.2 }
+        - { time: x, price: 0.19 }
+        - { time: x, price: 0.2 }
+        - { time: x, price: 0.23 }
+        - { time: x, price: 0.28 }
+        - { time: x, price: 0.34 }
+        - { time: x, price: 0.38 }
+        - { time: x, price: 0.36 }
+        - { time: x, price: 0.31 }
+        - { time: x, price: 0.27 }
+        - { time: x, price: 0.25 }
+        - { time: x, price: 0.23 }
+
+cards:
+  - card: prices
+    entity: sensor.nordpool

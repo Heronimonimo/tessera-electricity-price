@@ -1,0 +1,25 @@
+{
+  "_meta": { "name": "English" },
+  "screen": {
+    "choose": "Choose a price sensor",
+    "unavailable": "No price",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "now": "Now",
+    "low": "Lowest",
+    "high": "Highest",
+    "average": "Average",
+    "no_graph": "No prices for today"
+  },
+  "app": {
+    "name": "Electricity price",
+    "summary": "The electricity price now, with a graph of today and tomorrow, from a Nord Pool or ENTSO-e sensor.",
+    "tile_name": "Electricity price",
+    "tile_example": "The price now and the day's graph",
+    "card_name": "Electricity price",
+    "cents": "In cents",
+    "cents_hint": "Show cents per kWh (27.3) instead of euros (0.273).",
+    "decimals": "Decimals",
+    "decimals_hint": "How many decimals the price shows. In cents one is enough."
+  }
+}

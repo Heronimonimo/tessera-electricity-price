@@ -1,0 +1,25 @@
+{
+  "_meta": { "name": "Nederlands" },
+  "screen": {
+    "choose": "Kies een prijssensor",
+    "unavailable": "Geen prijs",
+    "today": "Vandaag",
+    "tomorrow": "Morgen",
+    "now": "Nu",
+    "low": "Laagste",
+    "high": "Hoogste",
+    "average": "Gemiddeld",
+    "no_graph": "Geen prijzen voor vandaag"
+  },
+  "app": {
+    "name": "Stroomprijs",
+    "summary": "De stroomprijs nu, met een grafiek van vandaag en morgen, van een Nord Pool- of ENTSO-e-sensor.",
+    "tile_name": "Stroomprijs",
+    "tile_example": "De prijs nu en de grafiek van de dag",
+    "card_name": "Stroomprijs",
+    "cents": "In centen",
+    "cents_hint": "Toon centen per kWh (27,3) in plaats van euro's (0,273).",
+    "decimals": "Decimalen",
+    "decimals_hint": "Hoeveel decimalen de prijs toont. In centen is er één genoeg."
+  }
+}
