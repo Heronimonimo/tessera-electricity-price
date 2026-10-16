@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.2
+- Tile with a graph: the name at the left and the price of now at the right, like the small tile. A tapped bar shows its time in place of the name.
+
 ## 0.5.1
 - Small tile like the meter bar tile: the name at the left, the price with its unit at the right.
 
