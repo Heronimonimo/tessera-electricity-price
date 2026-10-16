@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+- The card is as wide as the glass, like Tessera's own graph.
+
+## 0.6.0
+- Card: the unit behind the average, the highest and the lowest. A tapped bar shows its price under its time slot in the middle, and the price of now stays at the left.
+
 ## 0.5.4
 - Store picture (store.png) made on the bench.
 - Fixes found by the first real build: the GE-Spot tile is registered, no `strlcpy`, the Tomorrow label stays inside the card.

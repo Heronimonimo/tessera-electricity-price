@@ -551,8 +551,8 @@ class PriceCard : public tessera::Card {
     // The header as the history card has it: the price at the left, the average in the middle, and at the right the
     // highest and the lowest with the time slot they are in.
     // The words are the size of the history card's: the font of the words on a key.
-    left_w_ = width_ * 36 / 100;
-    right_x_ = width_ * 58 / 100;
+    left_w_ = width_ * 32 / 100;
+    right_x_ = width_ * 54 / 100;
     avg_cap_ = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
     lv_obj_set_size(avg_cap_, right_x_ - left_w_, text_h);
     lv_obj_set_style_text_align(avg_cap_, LV_TEXT_ALIGN_CENTER, 0);
@@ -602,7 +602,6 @@ class PriceCard : public tessera::Card {
     if (sel_ >= 0 && (!ok || prices_.days == 0 || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
     std::string big = ok ? number(prices_.current, decimals_) : plugin_->text(prices_.chosen ? "unavailable" : "choose");
     const std::string small = ok ? unit_text(prices_, cents_) : "";
-    if (sel_ >= 0) big = number(chart_.bar_value(sel_), decimals_);
     Font face = Font::TITLE;
     for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE})
       if (ui::text_width(big, f) + gap + ui::text_width(small, Font::BODY) <= left_w_) { face = f; break; }
@@ -617,11 +616,12 @@ class PriceCard : public tessera::Card {
     lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - sh - ui::px(2));
     const bool graph = ok && prices_.days > 0;
     if (graph && sel_ >= 0) {
+      // The tapped bar: its time slot, and its price under it, while the price of now stays where it is.
       ui::set_text(avg_cap_, slot_times(epoch));
-      ui::set_text(avg_, "");
+      ui::set_text(avg_, with_unit(chart_.bar_value(sel_), right_x_ - left_w_));
     } else {
       ui::set_text(avg_cap_, graph ? plugin_->text("average") : "");
-      ui::set_text(avg_, graph ? number(prices_.avg, decimals_) : "");
+      ui::set_text(avg_, graph ? with_unit(prices_.avg, right_x_ - left_w_) : "");
     }
     ui::set_text(extreme_[0], graph ? extreme_text("high", prices_.hi, prices_.hi_slot, epoch) : "");
     ui::set_text(extreme_[1], graph ? extreme_text("low", prices_.lo, prices_.lo_slot, epoch) : "");
@@ -674,8 +674,17 @@ class PriceCard : public tessera::Card {
   }
 
   // "High 0.381 · 18:00–18:15": the price and the time slot it is in; only the start when the whole does not fit.
+  // The price with its unit behind it; the price alone when both do not fit in `room`.
+  std::string with_unit(float value, int room) const {
+    const std::string n = number(value, decimals_), unit = unit_text(prices_, cents_);
+    const std::string both = unit.empty() ? n : n + " " + unit;
+    return ui::text_width(both, Font::BODY_LARGE) <= room ? both : n;
+  }
+
   std::string extreme_text(const char *key, float value, int slot, uint32_t epoch) const {
-    std::string words = tessera::fill(plugin_->text(key), "value", number(value, decimals_));
+    std::string words = tessera::fill(plugin_->text(key), "value", with_unit(value, width_));
+    if (ui::text_width(words, Font::BODY_LARGE) > width_ - right_x_)
+      words = tessera::fill(plugin_->text(key), "value", number(value, decimals_));
     if (!epoch) return words;
     const tessera::LocalTime t = tessera::local_time(epoch);
     const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
@@ -684,7 +693,8 @@ class PriceCard : public tessera::Card {
     const std::string dash = ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-";
     const std::string both = words + " \u00b7 " + from + dash + tessera::clock_text(midnight + (slot + 1) * minutes * 60);
     if (ui::text_width(both, Font::BODY_LARGE) <= width_ - right_x_) return both;
-    return words + " \u00b7 " + from;
+    const std::string start = words + " \u00b7 " + from;
+    return ui::text_width(start, Font::BODY_LARGE) <= width_ - right_x_ ? start : words;
   }
 
   const tessera::Plugin *plugin_;
@@ -705,7 +715,7 @@ void ElectricityPrice::setup() {
   add_tile("nordpool", [this]() { return new PriceTile(this, shared_); });
   add_tile("entsoe", [this]() { return new PriceTile(this, shared_); });
   add_tile("gespot", [this]() { return new PriceTile(this, shared_); });
-  add_card("prices", [this]() { return new PriceCard(this, shared_); }, false);
+  add_card("prices", [this]() { return new PriceCard(this, shared_); }, true);
 }
 
 }  // namespace esphome::electricity_price
