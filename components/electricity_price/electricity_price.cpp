@@ -371,7 +371,7 @@ class PriceTile : public tessera::Tile {
     head_ = ui::line_height(Font::HEADLINE);
     const int gap = ui::px(6);
     const int axis = ui::line_height(Font::BODY) + ui::px(ui::large() ? 8 : 4);
-    chart_on_ = c.columns * c.rows >= 2 && height_ - head_ - gap >= axis + ui::px(36);
+    chart_on_ = c.columns >= 2 && c.rows >= 2 && height_ - head_ - gap >= axis + ui::px(36);
     value_ = ui::label(c.parent, Font::VALUE, theme::INK);
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     name_text_ = c.name ? c.name : "";
