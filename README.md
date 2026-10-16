@@ -9,7 +9,7 @@ It reads the price sensor of **Nord Pool** (HACS `nordpool`) or **ENTSO-e** (`en
 2. In Layout, place the **Electricity price (Nord Pool)** or **Electricity price (ENTSO-e)** tile from the library's
    Plugins group. A 1x1 tile shows the price; from 2x1 up it adds the graph.
 3. In the inspector, choose your price sensor. The list holds only the sensors that fit the tile you placed.
-4. Optionally show cents (`27.3 ct/kWh`) instead of euros, and set the number of decimals.
+4. Choose the unit, **EUR/kWh** (`0.273`) or **ct/kWh** (`27.3`), and the number of decimals.
 5. Tap the tile to open the full screen card: the price now, the day's lowest, average and highest, and the graph.
 
 ## Good to know
@@ -19,5 +19,5 @@ It reads the price sensor of **Nord Pool** (HACS `nordpool`) or **ENTSO-e** (`en
   the bar now is the accent colour, and the bars to come are green, amber or red by their place between the lowest and
   highest price. Prices below zero hang under the zero line.
 - Tomorrow's bars appear on their own when the sensor has them (Nord Pool and ENTSO-e publish them in the afternoon).
-- The unit comes from the sensor (`EUR/kWh`). When the sensor reports per MWh, use the cents toggle with care: it
-  multiplies by 100.
+- The unit comes from the sensor (`EUR/kWh`). When the sensor reports per MWh, choosing ct/kWh
+  multiplies the sensor's value by 100.

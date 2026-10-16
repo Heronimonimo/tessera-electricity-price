@@ -7,7 +7,7 @@ tiles:
   - tile: entsoe
     name: ENTSO-e
     entity: sensor.entsoe
-    options: { cents: true, fixed: 1 }
+    options: { unit: cents, fixed: 1 }
 
 states:
   sensor.nordpool:

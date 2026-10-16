@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+- Choose the unit: EUR/kWh or ct/kWh.
+- Time axis and price axis in the look of Tessera's history graph; the small tile is the meter's bar of cells.
+
 ## 0.2.0
 - The graph shows quarter-hour prices when the sensor has them.
 - One tile per integration (Nord Pool, ENTSO-e), so the inspector lists only compatible sensors.

@@ -18,8 +18,10 @@
     "tile_name_entsoe": "Stroomprijs (ENTSO-e)",
     "tile_example": "De prijs nu en de grafiek van de dag",
     "card_name": "Stroomprijs",
-    "cents": "In centen",
-    "cents_hint": "Toon centen per kWh (27,3) in plaats van euro's (0,273).",
+    "unit": "Eenheid",
+    "unit_hint": "Toon de prijs in euro per kWh (0,273) of in cent per kWh (27,3).",
+    "unit_eur": "EUR/kWh",
+    "unit_cents": "ct/kWh",
     "decimals": "Decimalen",
     "decimals_hint": "Hoeveel decimalen de prijs toont. In centen is er één genoeg."
   }

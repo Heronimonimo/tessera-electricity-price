@@ -18,8 +18,10 @@
     "tile_name_entsoe": "Electricity price (ENTSO-e)",
     "tile_example": "The price now and the day's graph",
     "card_name": "Electricity price",
-    "cents": "In cents",
-    "cents_hint": "Show cents per kWh (27.3) instead of euros (0.273).",
+    "unit": "Unit",
+    "unit_hint": "Show the price in euros per kWh (0.273) or in cents per kWh (27.3).",
+    "unit_eur": "EUR/kWh",
+    "unit_cents": "ct/kWh",
     "decimals": "Decimals",
     "decimals_hint": "How many decimals the price shows. In cents one is enough."
   }

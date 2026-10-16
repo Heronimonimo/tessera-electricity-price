@@ -1,7 +1,7 @@
 # Electricity price: the price of power now as a tile, and the graph of today and tomorrow on bigger tiles and on a
 # card. It reads the sensor of Nord Pool (HACS `nordpool`) or of ENTSO-e (`entsoe`) from Home Assistant.
 id: electricity_price
-version: 0.2.0
+version: 0.3.0
 api: "0.9"
 icon: flash
 maintainer: Heronimonimo
@@ -19,7 +19,7 @@ tiles:
     name: tile_name_nordpool
     icon: flash
     sizes: { min: 1x1, max: 4x3 }
-    memory: 9500
+    memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [raw_today]
@@ -29,13 +29,20 @@ tiles:
     example: tile_example
     preview: { title: "{name}", value: "{state}" }
     options:
-      - { id: cents, kind: toggle, default: false, label: cents, hint: cents_hint }
+      - id: unit
+        kind: choice
+        default: eur
+        label: unit
+        hint: unit_hint
+        choices:
+          - { value: eur, label: unit_eur }
+          - { value: cents, label: unit_cents }
       - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 3, label: decimals, hint: decimals_hint }
   - id: entsoe
     name: tile_name_entsoe
     icon: flash
     sizes: { min: 1x1, max: 4x3 }
-    memory: 9500
+    memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [prices_today]
@@ -45,7 +52,14 @@ tiles:
     example: tile_example
     preview: { title: "{name}", value: "{state}" }
     options:
-      - { id: cents, kind: toggle, default: false, label: cents, hint: cents_hint }
+      - id: unit
+        kind: choice
+        default: eur
+        label: unit
+        hint: unit_hint
+        choices:
+          - { value: eur, label: unit_eur }
+          - { value: cents, label: unit_cents }
       - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 3, label: decimals, hint: decimals_hint }
 
 cards:
