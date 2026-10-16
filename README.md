@@ -1,7 +1,7 @@
 # Electricity price
 
 The electricity price now as a tile, with the graph of today and tomorrow on bigger tiles and on a card of its own.
-It reads the price sensor of **Nord Pool** (HACS `nordpool`) or **ENTSO-e** (`entsoe`) in Home Assistant.
+It reads the price sensor of **Nord Pool** (HACS `nordpool`), **ENTSO-e** (`entsoe`) or **GE-Spot** (`ge_spot`) in Home Assistant. For GE-Spot, use its price sensor in a currency per kWh (not the cents display).
 
 ## Set up
 

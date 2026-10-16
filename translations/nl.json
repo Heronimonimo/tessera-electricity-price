@@ -16,6 +16,7 @@
     "summary": "De stroomprijs nu, met een grafiek van vandaag en morgen, van een Nord Pool- of ENTSO-e-sensor.",
     "tile_name_nordpool": "Stroomprijs (Nord Pool)",
     "tile_name_entsoe": "Stroomprijs (ENTSO-e)",
+    "tile_name_gespot": "Stroomprijs (GE-Spot)",
     "tile_example": "De prijs nu en de grafiek van de dag",
     "card_name": "Stroomprijs",
     "unit": "Eenheid",

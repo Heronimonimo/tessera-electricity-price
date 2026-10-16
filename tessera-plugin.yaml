@@ -1,7 +1,7 @@
 # Electricity price: the price of power now as a tile, and the graph of today and tomorrow on bigger tiles and on a
-# card. It reads the sensor of Nord Pool (HACS `nordpool`) or of ENTSO-e (`entsoe`) from Home Assistant.
+# card. It reads the sensor of Nord Pool (HACS `nordpool`), ENTSO-e (`entsoe`) or GE-Spot (`ge_spot`) from Home Assistant.
 id: electricity_price
-version: 0.4.1
+version: 0.5.0
 api: "0.12"
 icon: flash
 maintainer: Heronimonimo
@@ -49,6 +49,29 @@ tiles:
     fields:
       today: { path: "prices_today[*].price", as: numbers }
       tomorrow: { path: "prices_tomorrow[*].price", as: numbers }
+    example: tile_example
+    preview: { title: "{name}", value: "{state}" }
+    options:
+      - id: unit
+        kind: choice
+        default: eur
+        label: unit
+        hint: unit_hint
+        choices:
+          - { value: eur, label: unit_eur }
+          - { value: cents, label: unit_cents }
+      - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 3, label: decimals, hint: decimals_hint }
+  - id: gespot
+    name: tile_name_gespot
+    icon: flash
+    sizes: { min: 1x1, max: 4x3 }
+    memory: 13000
+    domains: [sensor]
+    attributes: [unit_of_measurement]
+    has_attributes: [today_interval_prices]
+    fields:
+      today: { path: "today_interval_prices[*].value", as: numbers }
+      tomorrow: { path: "tomorrow_interval_prices[*].value", as: numbers }
     example: tile_example
     preview: { title: "{name}", value: "{state}" }
     options:

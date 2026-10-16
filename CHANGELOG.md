@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.0
+- GE-Spot as a source: a third tile reads `today_interval_prices` and `tomorrow_interval_prices` (the `value` of each interval).
+
 ## 0.4.1
 - Tapping a bar works on the full screen card too (needs API 0.12). High, low and average use the font of the history card.
 
