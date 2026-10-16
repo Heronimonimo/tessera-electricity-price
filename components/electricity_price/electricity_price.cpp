@@ -12,41 +12,45 @@ using tessera::Font;
 using tessera::Tone;
 namespace ui = tessera::ui;
 
-constexpr int HOURS = 48;  // today and tomorrow, an hour each: a day of 96 quarters is folded to 24 bars
+constexpr int MAX_SLOTS = 192;  // two days of 96 quarters
+constexpr int TILE_BARS = 96;   // a tile draws at most this many bars (memory); the card draws them all
 
-// ---- The prices: what the sensor says, folded to one price per hour ----
+// ---- The prices: what the sensor says, one price per slot (a quarter of an hour when the sensor has them, else an hour) ----
 struct Prices {
-  float hour[HOURS] = {};
-  int count = 0;  // 0 (no graph), 24 (today) or 48 (today and tomorrow)
+  float slot[MAX_SLOTS] = {};
+  int per = 24;   // slots per day: 96 or 24
+  int days = 0;   // 0 (no graph), 1 (today) or 2 (today and tomorrow)
   float current = 0;
   bool has_current = false;
   bool chosen = false;  // the tile has a sensor
   char unit[16] = "";
   float lo = 0, hi = 0, avg = 0;  // of today
+  int count() const { return per * days; }
 };
 
-// Fold a list of prices (hourly, or 96 quarters, or 92 and 100 on the days the clock changes) to 24 hours.
-static bool fold(JsonVariantConst list, float scale, float *out) {
+// Put a list of a day's prices (24 hours, 96 quarters, or 23/25 hours and 92/100 quarters on the days the clock
+// changes) into `per` slots.
+static bool fold(JsonVariantConst list, float scale, int per, float *out) {
   JsonArrayConst a = list.as<JsonArrayConst>();
   const int n = static_cast<int>(a.size());
-  if (n < 24) return false;
-  float sum[24] = {};
-  int seen[24] = {};
+  if (n < 23) return false;
+  float sum[96] = {};
+  int seen[96] = {};
   int i = 0;
   for (JsonVariantConst v : a) {
     if (v.is<float>()) {
-      const int h = std::min(23, i * 24 / n);
-      sum[h] += v.as<float>() * scale;
-      seen[h]++;
+      const int s = std::min(per - 1, i * per / n);
+      sum[s] += v.as<float>() * scale;
+      seen[s]++;
     }
     i++;
   }
-  for (int h = 0; h < 24; h++) out[h] = seen[h] ? sum[h] / seen[h] : NAN;
+  for (int s = 0; s < per; s++) out[s] = seen[s] ? sum[s] / seen[s] : NAN;
   return true;
 }
 
 static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
-  p.count = 0;
+  p.days = 0;
   p.has_current = false;
   p.chosen = !data["state"].isNull();
   if (!p.chosen) return;
@@ -60,18 +64,19 @@ static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
   }
   strlcpy(p.unit, data["attributes"]["unit_of_measurement"] | "", sizeof(p.unit));
   JsonObjectConst a = data["attributes"];
-  // Nord Pool names its lists raw_today, ENTSO-e prices_today; the manifest maps both, one of them is empty.
-  if (fold(a["np_today"], scale, p.hour) || fold(a["en_today"], scale, p.hour)) {
-    p.count = 24;
-    if (fold(a["np_tomorrow"], scale, p.hour + 24) || fold(a["en_tomorrow"], scale, p.hour + 24)) p.count = 48;
+  const int today = a["today"].as<JsonArrayConst>().size();
+  p.per = today >= 90 ? 96 : 24;
+  if (fold(a["today"], scale, p.per, p.slot)) {
+    p.days = 1;
+    if (fold(a["tomorrow"], scale, p.per, p.slot + p.per)) p.days = 2;
   }
   float lo = INFINITY, hi = -INFINITY, sum = 0;
   int n = 0;
-  for (int h = 0; h < std::min(24, p.count); h++) {
-    if (std::isnan(p.hour[h])) continue;
-    lo = std::min(lo, p.hour[h]);
-    hi = std::max(hi, p.hour[h]);
-    sum += p.hour[h];
+  for (int s = 0; s < (p.days ? p.per : 0); s++) {
+    if (std::isnan(p.slot[s])) continue;
+    lo = std::min(lo, p.slot[s]);
+    hi = std::max(hi, p.slot[s]);
+    sum += p.slot[s];
     n++;
   }
   p.lo = n ? lo : 0;
@@ -101,66 +106,84 @@ static std::string unit_text(const Prices &p, bool cents) {
   return money.empty() ? per : money + "/" + per;
 }
 
-static int hour_now(uint32_t epoch) { return epoch ? tessera::local_time(epoch).hour : -1; }
+// The slot of the moment now in today's `per` slots; -1 while the clock is not set.
+static int slot_now(uint32_t epoch, int per) {
+  if (!epoch) return -1;
+  const tessera::LocalTime t = tessera::local_time(epoch);
+  return (t.hour * 60 + t.minute) * per / 1440;
+}
 
-// ---- The graph: a bar for every hour, from the zero line ----
+// ---- The graph: a bar for every slot (or for a few slots together when there are more than it has bars) ----
 class Chart {
  public:
-  void create(lv_obj_t *parent, int x, int y, int w, int h) {
+  void create(lv_obj_t *parent, int x, int y, int w, int h, int cap) {
     x_ = x;
     y_ = y;
     w_ = w;
     h_ = h;
-    for (int i = 0; i < HOURS; i++) {
+    cap_ = std::min(cap, MAX_SLOTS);
+    for (int i = 0; i < cap_; i++) {
       bars_[i] = ui::block(parent, theme::TRACK);
-      lv_obj_set_style_radius(bars_[i], ui::px(2), 0);
+      lv_obj_set_style_radius(bars_[i], ui::px(1), 0);
       lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
     }
   }
 
-  // The past is grey, the hour now the accent, the hours to come green, amber or red by their place in the day's range.
+  // The past is grey, the bar of now the accent, the bars to come green, amber or red by their place in the range.
   void update(const Prices &p, int now) {
-    const int n = p.count;
+    const int n = p.count();
+    const int group = n > cap_ ? (n + cap_ - 1) / cap_ : 1;
+    const int bars = n ? (n + group - 1) / group : 0;
+    float v[MAX_SLOTS];
     float lo = 0, hi = 0, mn = INFINITY, mx = -INFINITY;
-    for (int i = 0; i < n; i++) {
-      if (std::isnan(p.hour[i])) continue;
-      lo = std::min(lo, p.hour[i]);
-      hi = std::max(hi, p.hour[i]);
-      mn = std::min(mn, p.hour[i]);
-      mx = std::max(mx, p.hour[i]);
+    for (int b = 0; b < bars; b++) {
+      float sum = 0;
+      int seen = 0;
+      for (int s = b * group; s < std::min(n, (b + 1) * group); s++) {
+        if (std::isnan(p.slot[s])) continue;
+        sum += p.slot[s];
+        seen++;
+      }
+      v[b] = seen ? sum / seen : NAN;
+      if (std::isnan(v[b])) continue;
+      lo = std::min(lo, v[b]);
+      hi = std::max(hi, v[b]);
+      mn = std::min(mn, v[b]);
+      mx = std::max(mx, v[b]);
     }
     const float span = hi - lo > 0.0001f ? hi - lo : 1.0f;
     const int zero = static_cast<int>(h_ * hi / span);
-    for (int i = 0; i < HOURS; i++) {
+    const int now_bar = now < 0 ? -1 : now / group;
+    for (int i = 0; i < cap_; i++) {
       lv_obj_t *bar = bars_[i];
-      if (i >= n || std::isnan(p.hour[i])) {
+      if (i >= bars || std::isnan(v[i])) {
         lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
         continue;
       }
       lv_obj_clear_flag(bar, LV_OBJ_FLAG_HIDDEN);
-      const int slot = w_ / n;
-      const int gap = slot >= 8 ? 2 : 1;
-      const int off = (w_ - slot * n) / 2;
-      const int len = std::max(2, static_cast<int>(std::fabs(p.hour[i]) / span * h_));
+      const int slot = w_ / bars;
+      const int gap = slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);
+      const int off = (w_ - slot * bars) / 2;
+      const int len = std::max(2, static_cast<int>(std::fabs(v[i]) / span * h_));
       lv_obj_set_size(bar, std::max(1, slot - gap), len);
-      lv_obj_set_pos(bar, x_ + off + i * slot, y_ + (p.hour[i] >= 0 ? zero - len : zero));
-      if (i < now) {
+      lv_obj_set_pos(bar, x_ + off + i * slot, y_ + (v[i] >= 0 ? zero - len : zero));
+      if (i < now_bar) {
         ui::set_fill(bar, Tone::NORMAL, theme::TRACK);
-      } else if (i == now) {
+      } else if (i == now_bar) {
         ui::set_fill(bar, Tone::NORMAL, theme::ACCENT);
       } else {
-        const float at = mx > mn ? (p.hour[i] - mn) / (mx - mn) : 0.5f;
+        const float at = mx > mn ? (v[i] - mn) / (mx - mn) : 0.5f;
         ui::set_fill(bar, at < 0.34f ? Tone::GOOD : at < 0.67f ? Tone::BUSY : Tone::ALERT, theme::TRACK);
       }
     }
   }
 
  private:
-  lv_obj_t *bars_[HOURS]{};
-  int x_ = 0, y_ = 0, w_ = 1, h_ = 1;
+  lv_obj_t *bars_[MAX_SLOTS]{};
+  int x_ = 0, y_ = 0, w_ = 1, h_ = 1, cap_ = 0;
 };
 
-// What a card needs from the tile that opened it: the tile's options and its last prices.
+// What a card takes over from the tile that opened it: the tile's options and its last prices.
 struct Shared {
   bool cents = false;
   int decimals = 3;
@@ -183,7 +206,7 @@ class PriceTile : public tessera::Tile {
     chart_on_ = c.columns * c.rows >= 2 && height_ - head_ - gap >= ui::px(36);
     value_ = ui::label(c.parent, Font::VALUE, theme::INK);
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
-    if (chart_on_) chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap);
+    if (chart_on_) chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS);
   }
 
   void on_state(JsonObjectConst data) override { read_prices(data, cents_, prices_); }
@@ -215,7 +238,7 @@ class PriceTile : public tessera::Tile {
       lv_obj_set_pos(value_, 0, (head_ - vh) / 2);
       lv_obj_set_size(unit_, std::max(1, width_ - vw - gap), small_h);
       lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - small_h - ui::px(2));
-      chart_.update(ok ? prices_ : Prices(), hour_now(epoch));
+      chart_.update(ok ? prices_ : Prices(), slot_now(epoch, prices_.per));
     } else {
       // The price in the middle with the unit under it.
       Font face = Font::TITLE;
@@ -292,16 +315,14 @@ class PriceCard : public tessera::Card {
     y += cap_h + val_h + gap;
     const int days_h = ui::line_height(Font::BODY);
     const int chart_h = std::max(ui::px(20), height_ - y - days_h - gap);
-    chart_.create(c.parent, 0, y, width_, chart_h);
+    chart_.create(c.parent, 0, y, width_, chart_h, MAX_SLOTS);
     const int days_y = y + chart_h + gap / 2;
     today_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     lv_obj_set_size(today_, width_ / 2, days_h);
     lv_obj_set_pos(today_, 0, days_y);
-    ui::set_text(today_, plugin_->text("today"));
     tomorrow_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     lv_obj_set_size(tomorrow_, width_ / 2, days_h);
     lv_obj_set_pos(tomorrow_, width_ / 2, days_y);
-    ui::set_text(tomorrow_, plugin_->text("tomorrow"));
     on_tick(0);
   }
 
@@ -328,13 +349,13 @@ class PriceCard : public tessera::Card {
     lv_obj_set_pos(value_, 0, (head_ - vh) / 2);
     lv_obj_set_size(unit_, std::max(1, width_ - vw - gap), sh);
     lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - sh - ui::px(2));
-    const bool graph = ok && prices_.count > 0;
+    const bool graph = ok && prices_.days > 0;
     ui::set_text(stat_[0], graph ? number(prices_.lo, decimals_) : "");
     ui::set_text(stat_[1], graph ? number(prices_.avg, decimals_) : "");
     ui::set_text(stat_[2], graph ? number(prices_.hi, decimals_) : "");
-    chart_.update(graph ? prices_ : Prices(), hour_now(epoch));
-    ui::set_text(today_, graph ? plugin_->text("today") : plugin_->text("no_graph"));
-    ui::set_text(tomorrow_, prices_.count == 48 ? plugin_->text("tomorrow") : "");
+    chart_.update(graph ? prices_ : Prices(), slot_now(epoch, prices_.per));
+    ui::set_text(today_, plugin_->text(graph ? "today" : "no_graph"));
+    ui::set_text(tomorrow_, prices_.days == 2 ? plugin_->text("tomorrow") : "");
   }
 
   void on_theme() override {
@@ -362,7 +383,9 @@ class PriceCard : public tessera::Card {
 
 void ElectricityPrice::setup() {
   shared_ = new Shared();
-  add_tile("price", [this]() { return new PriceTile(this, shared_); });
+  // Two tiles for the two integrations: the inspector lists only sensors that have the attributes of that one.
+  add_tile("nordpool", [this]() { return new PriceTile(this, shared_); });
+  add_tile("entsoe", [this]() { return new PriceTile(this, shared_); });
   add_card("prices", [this]() { return new PriceCard(this, shared_); }, false);
 }
 

@@ -14,7 +14,8 @@
   "app": {
     "name": "Stroomprijs",
     "summary": "De stroomprijs nu, met een grafiek van vandaag en morgen, van een Nord Pool- of ENTSO-e-sensor.",
-    "tile_name": "Stroomprijs",
+    "tile_name_nordpool": "Stroomprijs (Nord Pool)",
+    "tile_name_entsoe": "Stroomprijs (ENTSO-e)",
     "tile_example": "De prijs nu en de grafiek van de dag",
     "card_name": "Stroomprijs",
     "cents": "In centen",
