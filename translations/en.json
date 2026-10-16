@@ -6,8 +6,8 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "now": "Now",
-    "low": "Lowest",
-    "high": "Highest",
+    "low": "Low {value}",
+    "high": "High {value}",
     "average": "Average",
     "no_graph": "No prices for today"
   },

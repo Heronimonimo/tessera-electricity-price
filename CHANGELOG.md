@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1
+- Card header like the history card: price at the left, average in the middle, highest and lowest at the right with their time slot.
+
 ## 0.3.0
 - Choose the unit: EUR/kWh or ct/kWh.
 - Time axis and price axis in the look of Tessera's history graph; the small tile is the meter's bar of cells.

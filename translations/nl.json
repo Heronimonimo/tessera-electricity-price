@@ -6,8 +6,8 @@
     "today": "Vandaag",
     "tomorrow": "Morgen",
     "now": "Nu",
-    "low": "Laagste",
-    "high": "Hoogste",
+    "low": "Laag {value}",
+    "high": "Hoog {value}",
     "average": "Gemiddeld",
     "no_graph": "Geen prijzen voor vandaag"
   },
