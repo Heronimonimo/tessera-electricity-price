@@ -530,27 +530,28 @@ class PriceCard : public tessera::Card {
     cents_ = shared_->cents;
     decimals_ = shared_->decimals;
     const int gap = ui::px(8);
-    head_ = ui::line_height(Font::VALUE);
+    const int text_h = ui::line_height(Font::BODY_LARGE);
+    head_ = std::max(ui::line_height(Font::VALUE), 2 * text_h);
     value_ = ui::label(c.parent, Font::VALUE, theme::INK);
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     // The header as the history card has it: the price at the left, the average in the middle, and at the right the
     // highest and the lowest with the time slot they are in.
-    const int body_h = ui::line_height(Font::BODY), title_h = ui::line_height(Font::TITLE);
+    // The words are the size of the history card's: the font of the words on a key.
     left_w_ = width_ * 36 / 100;
     right_x_ = width_ * 58 / 100;
-    avg_cap_ = ui::label(c.parent, Font::BODY, theme::MUTED);
-    lv_obj_set_size(avg_cap_, right_x_ - left_w_, body_h);
+    avg_cap_ = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
+    lv_obj_set_size(avg_cap_, right_x_ - left_w_, text_h);
     lv_obj_set_style_text_align(avg_cap_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(avg_cap_, left_w_, (head_ - body_h - title_h) / 2);
-    avg_ = ui::label(c.parent, Font::TITLE, theme::INK);
-    lv_obj_set_size(avg_, right_x_ - left_w_, title_h);
+    lv_obj_set_pos(avg_cap_, left_w_, (head_ - 2 * text_h) / 2);
+    avg_ = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
+    lv_obj_set_size(avg_, right_x_ - left_w_, text_h);
     lv_obj_set_style_text_align(avg_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(avg_, left_w_, (head_ - body_h - title_h) / 2 + body_h);
+    lv_obj_set_pos(avg_, left_w_, (head_ - 2 * text_h) / 2 + text_h);
     for (int i = 0; i < 2; i++) {
-      extreme_[i] = ui::label(c.parent, Font::BODY, theme::MUTED);
-      lv_obj_set_size(extreme_[i], width_ - right_x_, body_h);
+      extreme_[i] = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
+      lv_obj_set_size(extreme_[i], width_ - right_x_, text_h);
       lv_obj_set_style_text_align(extreme_[i], LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_pos(extreme_[i], right_x_, (head_ - 2 * body_h) / 2 + i * body_h);
+      lv_obj_set_pos(extreme_[i], right_x_, (head_ - 2 * text_h) / 2 + i * text_h);
     }
     int y = head_ + gap;
     // The graph on a card of its own, as the history graph sits on one: a day label row, then the plot.
@@ -583,8 +584,11 @@ class PriceCard : public tessera::Card {
     last_epoch_ = epoch;
     const bool ok = prices_.chosen && prices_.has_current;
     const int gap = ui::px(8);
-    const std::string big = ok ? number(prices_.current, decimals_) : plugin_->text(prices_.chosen ? "unavailable" : "choose");
+    // A tapped bar shows its own price and time slot for a few seconds, then the card is as it was.
+    if (sel_ >= 0 && (!ok || prices_.days == 0 || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
+    std::string big = ok ? number(prices_.current, decimals_) : plugin_->text(prices_.chosen ? "unavailable" : "choose");
     const std::string small = ok ? unit_text(prices_, cents_) : "";
+    if (sel_ >= 0) big = number(chart_.bar_value(sel_), decimals_);
     Font face = Font::TITLE;
     for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE})
       if (ui::text_width(big, f) + gap + ui::text_width(small, Font::BODY) <= left_w_) { face = f; break; }
@@ -598,8 +602,13 @@ class PriceCard : public tessera::Card {
     lv_obj_set_size(unit_, std::max(1, left_w_ - vw - gap), sh);
     lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - sh - ui::px(2));
     const bool graph = ok && prices_.days > 0;
-    ui::set_text(avg_cap_, graph ? plugin_->text("average") : "");
-    ui::set_text(avg_, graph ? number(prices_.avg, decimals_) : "");
+    if (graph && sel_ >= 0) {
+      ui::set_text(avg_cap_, slot_times(epoch));
+      ui::set_text(avg_, "");
+    } else {
+      ui::set_text(avg_cap_, graph ? plugin_->text("average") : "");
+      ui::set_text(avg_, graph ? number(prices_.avg, decimals_) : "");
+    }
     ui::set_text(extreme_[0], graph ? extreme_text("high", prices_.hi, prices_.hi_slot, epoch) : "");
     ui::set_text(extreme_[1], graph ? extreme_text("low", prices_.lo, prices_.lo_slot, epoch) : "");
     chart_.update(graph ? prices_ : Prices(), slot_now(epoch, prices_.per), epoch);
@@ -613,6 +622,16 @@ class PriceCard : public tessera::Card {
     if (second) lv_obj_set_pos(tomorrow_, chart_.midnight_x() + ui::px(ui::large() ? 8 : 4), lv_obj_get_y(today_));
   }
 
+  // A tap on a bar shows it; a tap on the one shown, or elsewhere, puts the card back.
+  void on_tap() override {
+    const tessera::Point p = tessera::tap_point();
+    const int hit = p.x >= 0 && prices_.days > 0 ? chart_.bar_at(p.x, p.y) : -1;
+    sel_ = hit >= 0 && hit != sel_ ? hit : -1;
+    sel_until_ = last_epoch_ + 8;
+    chart_.select(sel_);
+    on_tick(last_epoch_);
+  }
+
   void on_theme() override {
     ui::set_color(value_, theme::INK);
     ui::set_color(unit_, theme::MUTED);
@@ -624,6 +643,18 @@ class PriceCard : public tessera::Card {
   }
 
  private:
+  // "18:00–18:15" of the shown bar; only the start when it does not fit in the middle.
+  std::string slot_times(uint32_t epoch) const {
+    if (!epoch) return "";
+    const tessera::LocalTime t = tessera::local_time(epoch);
+    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
+    const int minutes = 1440 / prices_.per;
+    const std::string a = tessera::clock_text(midnight + static_cast<uint32_t>(chart_.bar_from(sel_)) * minutes * 60);
+    const std::string b = tessera::clock_text(midnight + static_cast<uint32_t>(chart_.bar_to(sel_, prices_.count())) * minutes * 60);
+    const std::string both = a + (ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-") + b;
+    return ui::text_width(both, Font::BODY_LARGE) <= right_x_ - left_w_ ? both : a;
+  }
+
   // "High 0.381 · 18:00–18:15": the price and the time slot it is in; only the start when the whole does not fit.
   std::string extreme_text(const char *key, float value, int slot, uint32_t epoch) const {
     std::string words = tessera::fill(plugin_->text(key), "value", number(value, decimals_));
@@ -632,9 +663,9 @@ class PriceCard : public tessera::Card {
     const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
     const int minutes = 1440 / prices_.per;
     const std::string from = tessera::clock_text(midnight + slot * minutes * 60);
-    const std::string dash = ui::covers("\u2013", Font::BODY) ? "\u2013" : "-";
+    const std::string dash = ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-";
     const std::string both = words + " \u00b7 " + from + dash + tessera::clock_text(midnight + (slot + 1) * minutes * 60);
-    if (ui::text_width(both, Font::BODY) <= width_ - right_x_) return both;
+    if (ui::text_width(both, Font::BODY_LARGE) <= width_ - right_x_) return both;
     return words + " \u00b7 " + from;
   }
 
@@ -643,6 +674,8 @@ class PriceCard : public tessera::Card {
   Prices prices_;
   Chart chart_;
   bool cents_ = false;
+  int sel_ = -1;
+  uint32_t sel_until_ = 0;
   int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, left_w_ = 0, right_x_ = 0;
   uint32_t last_epoch_ = 0;
   lv_obj_t *value_{}, *unit_{}, *avg_cap_{}, *avg_{}, *extreme_[2]{}, *today_{}, *tomorrow_{}, *surface_{};

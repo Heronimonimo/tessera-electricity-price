@@ -10,7 +10,7 @@ It reads the price sensor of **Nord Pool** (HACS `nordpool`) or **ENTSO-e** (`en
    Plugins group. A 1x1 tile shows the price; from 2x1 up it adds the graph.
 3. In the inspector, choose your price sensor. The list holds only the sensors that fit the tile you placed.
 4. Choose the unit, **EUR/kWh** (`0.273`) or **ct/kWh** (`27.3`), and the number of decimals.
-5. Tap a bar of the graph on a bigger tile to see its price and time slot for a few seconds. Tap that bar again, or beside the bars, to open the full screen card: the price now, the day's lowest, average and highest, and the graph.
+5. Tap a bar of the graph to see its price and time slot for a few seconds, on a bigger tile and on the full screen card. On a tile, tap that bar again, or beside the bars, to open the card: the price now, the day's lowest, average and highest, and the graph.
 
 ## Good to know
 

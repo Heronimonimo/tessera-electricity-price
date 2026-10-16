@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1
+- Tapping a bar works on the full screen card too (needs API 0.12). High, low and average use the font of the history card.
+
 ## 0.4.0
 - Tap a bar of the graph on a tile to see its price and time slot for a few seconds. Tap it again, or beside the bars, to open the card.
 
