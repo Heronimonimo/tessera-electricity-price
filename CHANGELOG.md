@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.0
+- Tap a bar of the graph on a tile to see its price and time slot for a few seconds. Tap it again, or beside the bars, to open the card.
+
 ## 0.3.1
 - Card header like the history card: price at the left, average in the middle, highest and lowest at the right with their time slot.
 

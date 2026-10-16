@@ -164,6 +164,18 @@ class Chart {
   int midnight_x() const { return mid_x_; }
   int left() const { return ax_; }
 
+  // The bar under a finger at x, y (the chart's own pixels), or -1.
+  int bar_at(int x, int y) const {
+    if (bars_now_ <= 0 || slot_w_ <= 0 || y < ay_ - label_h_ || y > ay_ + ah_ + label_h_) return -1;
+    const int i = (x - ax_ - off_) / slot_w_;
+    return x >= ax_ + off_ && i >= 0 && i < bars_now_ && !std::isnan(value_[i]) ? i : -1;
+  }
+  float bar_value(int i) const { return value_[i]; }
+  // The first and the one past the last slot (of all the days) that bar i stands for.
+  int bar_from(int i) const { return i * group_; }
+  int bar_to(int i, int n) const { return std::min(n, (i + 1) * group_); }
+  void select(int i) { sel_ = i; }
+
   // The past is grey, the bar of now the accent, the bars to come green, amber or red by their place in the range.
   void update(const Prices &p, int now, uint32_t epoch) {
     const int n = p.count();
@@ -187,6 +199,10 @@ class Chart {
       mx = std::max(mx, v[b]);
     }
     mid_x_ = 0;
+    group_ = group;
+    bars_now_ = bars;
+    for (int b = 0; b < bars; b++) value_[b] = v[b];
+    if (sel_ >= bars) sel_ = -1;
     if (!bars) {
       for (int i = 0; i < bars_n_; i++) lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
       for (int i = 0; i < MAX_TICKS; i++) {
@@ -244,6 +260,8 @@ class Chart {
     const int slot = aw_ / bars;
     const int gap = slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);
     const int off = (aw_ - slot * bars) / 2;
+    slot_w_ = slot;
+    off_ = off;
     const int zero = ay_ + static_cast<int>(std::lround(ah_ * top / range));
     const int now_bar = now < 0 ? -1 : now / group;
     for (int i = 0; i < bars_n_; i++) {
@@ -256,7 +274,9 @@ class Chart {
       const int len = std::max(2, static_cast<int>(std::lround(std::fabs(v[i]) / range * ah_)));
       lv_obj_set_size(bar, std::max(1, slot - gap), len);
       lv_obj_set_pos(bar, ax_ + off + i * slot, v[i] >= 0 ? zero - len : zero);
-      if (i < now_bar) {
+      if (i == sel_) {
+        ui::set_fill(bar, Tone::NORMAL, theme::INK);
+      } else if (i < now_bar) {
         ui::set_fill(bar, Tone::NORMAL, theme::TRACK);
       } else if (i == now_bar) {
         ui::set_fill(bar, Tone::NORMAL, theme::ACCENT);
@@ -326,6 +346,8 @@ class Chart {
   bool cents_ = false;
   int x_ = 0, ax_ = 0, ay_ = 0, aw_ = 1, ah_ = 1, label_w_ = 0, label_h_ = 0, time_y_ = 0, mark_y_ = 0, mark_h_ = 0;
   int bars_n_ = 0, times_n_ = 0, mid_x_ = 0;
+  int group_ = 1, bars_now_ = 0, slot_w_ = 0, off_ = 0, sel_ = -1;
+  float value_[MAX_SLOTS]{};
 };
 
 // What a card takes over from the tile that opened it: the tile's options and its last prices.
@@ -386,6 +408,14 @@ class PriceTile : public tessera::Tile {
     }
     const bool ok = prices_.chosen && prices_.has_current;
     const int gap = ui::px(6);
+    // A tapped bar shows its own price and time for a few seconds, then the price of now is back.
+    if (sel_ >= 0 && (!ok || !chart_on_ || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
+    if (sel_ >= 0) {
+      big = number(chart_.bar_value(sel_), decimals_);
+      small = unit_text(prices_, cents_) + " \u00b7 " + slot_times(epoch);
+      if (ui::text_width(big, Font::TITLE) + gap + ui::text_width(small, Font::BODY) > width_)
+        small = slot_times(epoch);
+    }
     const int small_h = ui::line_height(Font::BODY);
     ui::set_text(unit_, small);
     if (chart_on_) {
@@ -442,6 +472,18 @@ class PriceTile : public tessera::Tile {
   }
 
   void on_tap() override {
+    if (chart_on_ && prices_.days > 0) {
+      const tessera::Point p = tessera::tap_point();
+      const int hit = p.x >= 0 ? chart_.bar_at(p.x, p.y) : -1;
+      // A tap on a bar shows it; a tap on the one shown, or beside the bars, opens the card.
+      if (hit >= 0 && hit != sel_) {
+        sel_ = hit;
+        sel_until_ = last_epoch_ + 8;
+        chart_.select(hit);
+        on_tick(last_epoch_);
+        return;
+      }
+    }
     shared_->cents = cents_;
     shared_->decimals = decimals_;
     shared_->prices = prices_;
@@ -449,8 +491,23 @@ class PriceTile : public tessera::Tile {
   }
 
  private:
+  // "18:00–18:15" of the shown bar.
+  std::string slot_times(uint32_t epoch) const {
+    if (!epoch) return "";
+    const int n = prices_.count();
+    const int from = chart_.bar_from(sel_), to = chart_.bar_to(sel_, n);
+    const tessera::LocalTime t = tessera::local_time(epoch);
+    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
+    const int minutes = 1440 / prices_.per;
+    const std::string a = tessera::clock_text(midnight + static_cast<uint32_t>(from) * minutes * 60);
+    const std::string b = tessera::clock_text(midnight + static_cast<uint32_t>(to) * minutes * 60);
+    return a + (ui::covers("\u2013", Font::BODY) ? "\u2013" : "-") + b;
+  }
+
   const tessera::Plugin *plugin_;
   Shared *shared_;
+  int sel_ = -1;
+  uint32_t sel_until_ = 0;
   std::string entity_;
   Prices prices_;
   Chart chart_;
