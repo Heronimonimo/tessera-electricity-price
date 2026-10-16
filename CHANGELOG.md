@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.2
+- Card: the highest and the lowest price only count from now on, tomorrow included once it is known. A time slot of tomorrow says "Tomorrow" in front.
+
 ## 0.6.1
 - The card is as wide as the glass, like Tessera's own graph.
 

@@ -623,8 +623,8 @@ class PriceCard : public tessera::Card {
       ui::set_text(avg_cap_, graph ? plugin_->text("average") : "");
       ui::set_text(avg_, graph ? with_unit(prices_.avg, right_x_ - left_w_) : "");
     }
-    ui::set_text(extreme_[0], graph ? extreme_text("high", prices_.hi, prices_.hi_slot, epoch) : "");
-    ui::set_text(extreme_[1], graph ? extreme_text("low", prices_.lo, prices_.lo_slot, epoch) : "");
+    ui::set_text(extreme_[0], graph ? extreme_text("high", true, epoch) : "");
+    ui::set_text(extreme_[1], graph ? extreme_text("low", false, epoch) : "");
     chart_.update(graph ? prices_ : Prices(), slot_now(epoch, prices_.per), epoch);
     ui::set_fill(surface_, Tone::NORMAL, theme::CARD);
     lv_obj_set_style_border_color(surface_, ui::color(theme::LINE), 0);
@@ -681,7 +681,24 @@ class PriceCard : public tessera::Card {
     return ui::text_width(both, Font::BODY_LARGE) <= room ? both : n;
   }
 
-  std::string extreme_text(const char *key, float value, int slot, uint32_t epoch) const {
+  // The highest or lowest price from the slot of now on (today's rest and tomorrow); the clock not set: all of today.
+  bool extreme(bool high, int now, float &value, int &slot) const {
+    bool found = false;
+    for (int s = std::max(now, 0); s < prices_.count(); s++) {
+      const float v = prices_.slot[s];
+      if (std::isnan(v) || (found && (high ? v <= value : v >= value))) continue;
+      value = v;
+      slot = s;
+      found = true;
+    }
+    return found;
+  }
+
+  std::string extreme_text(const char *key, bool high, uint32_t epoch) const {
+    float value = 0;
+    int slot = 0;
+    const int now = slot_now(epoch, prices_.per);
+    if (!extreme(high, now, value, slot)) return "";
     std::string words = tessera::fill(plugin_->text(key), "value", with_unit(value, width_));
     if (ui::text_width(words, Font::BODY_LARGE) > width_ - right_x_)
       words = tessera::fill(plugin_->text(key), "value", number(value, decimals_));
@@ -689,7 +706,8 @@ class PriceCard : public tessera::Card {
     const tessera::LocalTime t = tessera::local_time(epoch);
     const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
     const int minutes = 1440 / prices_.per;
-    const std::string from = tessera::clock_text(midnight + slot * minutes * 60);
+    const std::string day = slot >= prices_.per ? std::string(plugin_->text("tomorrow")) + " " : std::string();
+    const std::string from = day + tessera::clock_text(midnight + slot * minutes * 60);
     const std::string dash = ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-";
     const std::string both = words + " \u00b7 " + from + dash + tessera::clock_text(midnight + (slot + 1) * minutes * 60);
     if (ui::text_width(both, Font::BODY_LARGE) <= width_ - right_x_) return both;
