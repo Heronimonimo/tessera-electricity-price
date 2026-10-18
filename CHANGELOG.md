@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.4
+- The tiles come in every size, from 1x1 up to 9x9 (before, at most 4x3).
+
 ## 0.6.3
 - Graph: the bars share the whole width of the plot. Before, each bar had a whole number of pixels, so on a screen where 192 quarters did not divide the width the bars took only part of it.
 

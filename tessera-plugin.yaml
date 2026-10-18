@@ -1,7 +1,7 @@
 # Electricity price: the price of power now as a tile, and the graph of today and tomorrow on bigger tiles and on a
 # card. It reads the sensor of Nord Pool (HACS `nordpool`), ENTSO-e (`entsoe`) or GE-Spot (`ge_spot`) from Home Assistant.
 id: electricity_price
-version: 0.6.3
+version: 0.6.4
 api: "0.12"
 icon: flash
 maintainer: Heronimonimo
@@ -18,7 +18,7 @@ tiles:
   - id: nordpool
     name: tile_name_nordpool
     icon: flash
-    sizes: { min: 1x1, max: 4x3 }
+    sizes: { min: 1x1, max: 9x9 }
     memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
@@ -41,7 +41,7 @@ tiles:
   - id: entsoe
     name: tile_name_entsoe
     icon: flash
-    sizes: { min: 1x1, max: 4x3 }
+    sizes: { min: 1x1, max: 9x9 }
     memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
@@ -64,7 +64,7 @@ tiles:
   - id: gespot
     name: tile_name_gespot
     icon: flash
-    sizes: { min: 1x1, max: 4x3 }
+    sizes: { min: 1x1, max: 9x9 }
     memory: 13000
     domains: [sensor]
     attributes: [unit_of_measurement]
