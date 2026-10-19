@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.5
+- The tiles also take the whole page (`full: true`): a tile as big as the grid, such as 5x5 on a 5x5 grid, was not offered before.
+- The editor shows the price with its unit.
+
 ## 0.6.4
 - The tiles come in every size, from 1x1 up to 9x9 (before, at most 4x3).
 
