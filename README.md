@@ -19,9 +19,9 @@ It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.
 ## Good to know
 
 - The graph has a bar for every quarter of an hour when the sensor has quarter prices, else for every hour. A tile
-  with more than 96 slots (quarters of today and tomorrow) joins neighbouring quarters into one bar; the card shows
+  with more than 100 slots (quarters of today and tomorrow) joins neighbouring quarters into one bar; the card shows
   them all. Past bars are grey, the bar now is the accent colour, and the bars to come are green, amber or red by their
   place between the lowest and highest price. Prices below zero hang under the zero line.
 - Tomorrow's bars appear on their own as soon as the sensor has them (the day-ahead prices come in the afternoon).
-- The unit comes from the sensor (`EUR/kWh` shows as `€/kWh`). **ct/kWh** multiplies the sensor's price by 100, so it
-  is right only for a sensor per kWh: for a sensor per MWh, keep **EUR/kWh** (the price then shows per MWh).
+- The unit comes from the sensor (`EUR/kWh` shows as `€/kWh`). A sensor that reports per MWh is shown per kWh.
+- On the days the clock changes, the graph has 23 or 25 hours, each where it is on the clock.

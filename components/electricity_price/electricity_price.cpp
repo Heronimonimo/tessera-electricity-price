@@ -12,51 +12,85 @@ using tessera::Font;
 using tessera::Tone;
 namespace ui = tessera::ui;
 
-constexpr int MAX_SLOTS = 192;  // two days of 96 quarters
+constexpr int MAX_DAY = 100;    // a day's slots, at most: 100 quarters on the day the clock goes back
+constexpr int MAX_SLOTS = 2 * MAX_DAY;  // today and tomorrow
 constexpr int MAX_CELLS = 60;  // as many as the meter's bar has
-constexpr int TILE_BARS = 96;   // a tile draws at most this many bars (memory); the card draws them all
+constexpr int TILE_BARS = 100;  // a tile draws at most this many bars (memory); the card draws them all
 
 // ---- The prices: what the sensor says, one price per slot (a quarter of an hour when the sensor has them, else an hour) ----
 struct Prices {
   float slot[MAX_SLOTS] = {};
-  int per = 24;   // slots per day: 96 or 24
-  int days = 0;   // 0 (no graph), 1 (today) or 2 (today and tomorrow)
+  int today = 0;     // today's slots: 24 hours or 96 quarters, 23/25 or 92/100 on the days the clock changes; 0: no graph
+  int tomorrow = 0;  // tomorrow's, in today's resolution, after today's; 0 until the sensor has them
   float current = 0;
   bool has_current = false;
   bool chosen = false;  // the tile has a sensor
   char unit[16] = "";
   float lo = 0, hi = 0, avg = 0;  // of today
   int lo_slot = 0, hi_slot = 0;   // the slots of today they are in
-  int count() const { return per * days; }
+  int count() const { return today + tomorrow; }
 };
 
-// Put a list of a day's prices (24 hours, 96 quarters, or 23/25 hours and 92/100 quarters on the days the clock
-// changes) into `per` slots.
-static bool fold(JsonVariantConst list, float scale, int per, float *out) {
+// A list of a day's prices into `out`, one slot each: 24 hours or 96 quarters, and 23/25 hours or 92/100 quarters on
+// the days the clock changes. A list finer than quarters is joined to at most MAX_DAY slots. Returns the slots, 0 for
+// no list.
+static int read_day(JsonVariantConst list, float scale, float *out) {
   JsonArrayConst a = list.as<JsonArrayConst>();
   const int n = static_cast<int>(a.size());
-  if (n < 23) return false;
-  float sum[96] = {};
-  int seen[96] = {};
+  if (n < 23) return 0;
+  const int join = (n + MAX_DAY - 1) / MAX_DAY;
+  const int slots = (n + join - 1) / join;
+  float sum[MAX_DAY] = {};
+  int seen[MAX_DAY] = {};
   int i = 0;
   for (JsonVariantConst v : a) {
     if (v.is<float>()) {
-      const int s = std::min(per - 1, i * per / n);
-      sum[s] += v.as<float>() * scale;
-      seen[s]++;
+      sum[i / join] += v.as<float>() * scale;
+      seen[i / join]++;
     }
     i++;
   }
-  for (int s = 0; s < per; s++) out[s] = seen[s] ? sum[s] / seen[s] : NAN;
-  return true;
+  for (int s = 0; s < slots; s++) out[s] = seen[s] ? sum[s] / seen[s] : NAN;
+  return slots;
+}
+
+// A day of `n` slots in quarters or in hours, so that tomorrow has today's: an hour becomes four quarters, four quarters
+// one hour. Returns its slots now.
+static int resolve(float *day, int n, bool quarters) {
+  if ((n >= 90) == quarters) return n;
+  if (quarters) {
+    if (n * 4 > MAX_DAY) return 0;
+    for (int s = n * 4 - 1; s >= 0; s--) day[s] = day[s / 4];
+    return n * 4;
+  }
+  const int hours = (n + 3) / 4;
+  for (int h = 0; h < hours; h++) {
+    float sum = 0;
+    int seen = 0;
+    for (int s = h * 4; s < std::min(n, h * 4 + 4); s++) {
+      if (std::isnan(day[s])) continue;
+      sum += day[s];
+      seen++;
+    }
+    day[h] = seen ? sum / seen : NAN;
+  }
+  return hours;
 }
 
 static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
-  p.days = 0;
+  p.today = p.tomorrow = 0;
   p.has_current = false;
   p.chosen = !data["state"].isNull();
   if (!p.chosen) return;
-  const float scale = cents ? 100.0f : 1.0f;
+  // A price per MWh is made one per kWh, so the units, the decimals and the graph's labels read as for a sensor per kWh.
+  snprintf(p.unit, sizeof(p.unit), "%s", data["attributes"]["unit_of_measurement"] | "");
+  float scale = cents ? 100.0f : 1.0f;
+  if (char *slash = strchr(p.unit, '/')) {
+    if (strcmp(slash + 1, "MWh") == 0) {
+      scale /= 1000.0f;
+      snprintf(slash + 1, sizeof(p.unit) - (slash + 1 - p.unit), "kWh");
+    }
+  }
   const char *state = data["state"] | "";
   char *end = nullptr;
   const float v = strtof(state, &end);
@@ -64,18 +98,13 @@ static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
     p.current = v * scale;
     p.has_current = true;
   }
-  snprintf(p.unit, sizeof(p.unit), "%s", data["attributes"]["unit_of_measurement"] | "");
   JsonObjectConst a = data["attributes"];
-  const int today = a["today"].as<JsonArrayConst>().size();
-  p.per = today >= 90 ? 96 : 24;
-  if (fold(a["today"], scale, p.per, p.slot)) {
-    p.days = 1;
-    if (fold(a["tomorrow"], scale, p.per, p.slot + p.per)) p.days = 2;
-  }
+  p.today = read_day(a["today"], scale, p.slot);
+  if (p.today) p.tomorrow = resolve(p.slot + p.today, read_day(a["tomorrow"], scale, p.slot + p.today), p.today >= 90);
   float lo = INFINITY, hi = -INFINITY, sum = 0;
   int n = 0;
   p.lo_slot = p.hi_slot = 0;
-  for (int s = 0; s < (p.days ? p.per : 0); s++) {
+  for (int s = 0; s < p.today; s++) {
     if (std::isnan(p.slot[s])) continue;
     if (p.slot[s] < lo) { lo = p.slot[s]; p.lo_slot = s; }
     if (p.slot[s] > hi) { hi = p.slot[s]; p.hi_slot = s; }
@@ -109,11 +138,48 @@ static std::string unit_text(const Prices &p, bool cents) {
   return money.empty() ? per : money + "/" + per;
 }
 
-// The slot of the moment now in today's `per` slots; -1 while the clock is not set.
-static int slot_now(uint32_t epoch, int per) {
-  if (!epoch) return -1;
-  const tessera::LocalTime t = tessera::local_time(epoch);
-  return (t.hour * 60 + t.minute) * per / 1440;
+// The moment the day of `epoch` began on the screen's clock: its midnight, also on a day the clock changes, when the
+// time of day is an hour off the time since midnight.
+static uint32_t midnight_of(uint32_t epoch) {
+  uint32_t m = epoch;
+  for (int i = 0; i < 3; i++) {
+    const tessera::LocalTime t = tessera::local_time(m);
+    const uint32_t since = t.hour * 3600 + t.minute * 60 + t.second;
+    if (since == 0) break;
+    // Past the clock's change, a step back of the time of day lands just before midnight: then forward to it.
+    m = m != epoch && since >= 12 * 3600 ? m + (86400 - since) : m - since;
+  }
+  return m;
+}
+
+// When each slot is: today's from its midnight, tomorrow's from the next, each as long as its day divided by its
+// slots (an hour or a quarter, also on the days of 23 and 25 hours).
+struct Day {
+  uint32_t start = 0, next = 0;  // today's midnight and tomorrow's; 0 while the clock is not set
+  uint32_t step = 3600, next_step = 3600;
+  int today = 0;
+  bool known() const { return start != 0; }
+  // When slot s begins; at(count()) is when the last one ends.
+  uint32_t at(int s) const {
+    return s < today ? start + static_cast<uint32_t>(s) * step : next + static_cast<uint32_t>(s - today) * next_step;
+  }
+  // The slot of the moment `epoch`, -1 while the clock is not set.
+  int slot(uint32_t epoch) const {
+    if (!known() || !today) return -1;
+    if (epoch < next) return static_cast<int>((epoch - start) / step);
+    return today + static_cast<int>((epoch - next) / next_step);
+  }
+};
+
+static Day day_of(const Prices &p, uint32_t epoch) {
+  Day d;
+  d.today = p.today;
+  if (!epoch || !p.today) return d;
+  d.start = midnight_of(epoch);
+  d.next = midnight_of(d.start + 26 * 3600);
+  d.step = (d.next - d.start) / p.today;
+  d.next_step = p.tomorrow ? (midnight_of(d.next + 26 * 3600) - d.next) / p.tomorrow : d.step;
+  return d;
 }
 
 // ---- The graph, in the look of Tessera's history graph: price labels on the left, hairlines across, the bars, and
@@ -177,8 +243,9 @@ class Chart {
   void select(int i) { sel_ = i; }
 
   // The past is grey, the bar of now the accent, the bars to come green, amber or red by their place in the range.
-  void update(const Prices &p, int now, uint32_t epoch) {
+  void update(const Prices &p, const Day &d, uint32_t epoch) {
     const int n = p.count();
+    const int now = d.slot(epoch);
     const int group = n > bars_n_ ? (n + bars_n_ - 1) / bars_n_ : 1;
     const int bars = n ? (n + group - 1) / group : 0;
     float v[MAX_SLOTS];
@@ -286,8 +353,8 @@ class Chart {
     }
 
     // The line between the days.
-    if (p.days == 2) {
-      mid_x_ = ax_ + edge_x(p.per / group);
+    if (p.tomorrow > 0) {
+      mid_x_ = ax_ + edge_x(p.today / group);
       lv_obj_clear_flag(divider_, LV_OBJ_FLAG_HIDDEN);
       lv_obj_set_size(divider_, 1, ah_);
       lv_obj_set_pos(divider_, mid_x_, ay_);
@@ -296,25 +363,30 @@ class Chart {
       lv_obj_add_flag(divider_, LV_OBJ_FLAG_HIDDEN);
     }
 
-    // The times under the bars: the clock hours that fit, a mark over each, as the history graph writes them.
+    // The times under the bars: the clock hours that fit, a mark over each, as the history graph writes them. Each
+    // stands where its slot begins, so a day of 23 or 25 hours has its hours where they are.
     for (int i = 0; i < times_n_; i++) {
       lv_obj_add_flag(marks_[i], LV_OBJ_FLAG_HIDDEN);
       lv_obj_add_flag(time_[i], LV_OBJ_FLAG_HIDDEN);
     }
-    if (!epoch) return;
-    const tessera::LocalTime t = tessera::local_time(epoch);
-    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
-    const int hours = 24 * p.days, between = ui::px(ui::large() ? 10 : 6);
-    const int sample = ui::text_width(tessera::clock_text(midnight + 8 * 3600), Font::BODY);
+    if (!d.known()) return;
+    const int hours = std::max(1, static_cast<int>((d.at(n) - d.start + 1800) / 3600));
+    const int between = ui::px(ui::large() ? 10 : 6);
+    const int sample = ui::text_width(tessera::clock_text(d.start + 8 * 3600), Font::BODY);
     const float per_hour = static_cast<float>(aw_) / hours;
     int every = 12;
     for (int h : {1, 2, 3, 4, 6, 12})
       if (hours / h <= times_n_ && (sample + between) <= h * per_hour) { every = h; break; }
     int last = ax_ - 1000, k = 0;
-    for (int h = 0; h < hours && k < times_n_; h += every) {
-      const std::string words = tessera::clock_text(midnight + (h % 24) * 3600);
+    for (int s = 0; s < n && k < times_n_; s++) {
+      // Only a slot that begins on a whole hour, and of those the hours of the clock every `every`.
+      const uint32_t at = d.at(s), from = s < d.today ? d.start : d.next;
+      if ((at - from) % 3600 != 0) continue;
+      const tessera::LocalTime t = tessera::local_time(at);
+      if (t.minute != 0 || t.hour % every != 0) continue;
+      const std::string words = tessera::clock_text(at);
       const int tw = ui::text_width(words, Font::BODY);
-      const int cx = ax_ + static_cast<int>(std::lround(per_hour * h));
+      const int cx = ax_ + static_cast<int>(static_cast<long long>(aw_) * s / n);
       const int left = std::max(ax_ - ui::px(ui::large() ? 8 : 4), cx - tw / 2);
       if (left <= last + between || left + tw > ax_ + aw_) continue;
       lv_obj_clear_flag(marks_[k], LV_OBJ_FLAG_HIDDEN);
@@ -366,7 +438,7 @@ class PriceTile : public tessera::Tile {
     tile_ = c.tile;
     entity_ = c.entity;
     cents_ = strcmp(c.options["unit"] | "eur", "cents") == 0;
-    decimals_ = std::min<int>(c.options["fixed"] | 3, cents_ ? 1 : 4);
+    decimals_ = std::min<int>(static_cast<int>(std::lround(c.options["fixed"] | 3.0f)), cents_ ? 1 : 4);  // 3 or 3.0
     head_ = ui::line_height(Font::HEADLINE);
     const int gap = ui::px(6);
     const int axis = ui::line_height(Font::BODY) + ui::px(ui::large() ? 8 : 4);
@@ -411,21 +483,24 @@ class PriceTile : public tessera::Tile {
     std::string name = name_text_;
     // A tapped bar shows its own price, and its time in place of the name, for a few seconds.
     if (sel_ >= 0 && (!ok || !chart_on_ || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
+    const Day day = day_of(prices_, epoch);
     if (sel_ >= 0) {
       big = number(chart_.bar_value(sel_), decimals_);
-      name = slot_times(epoch);
+      name = slot_times(day);
     }
+    // A message ("Choose a price sensor") that does not fit beside the name takes the whole row.
+    if (!ok && ui::text_width(big, Font::BODY_LARGE) > width_ * 60 / 100) name.clear();
     if (chart_on_) {
       // The name at the left and the price with its unit at the right, over the graph.
       place_row(big, small, name, head_);
-      chart_.update(ok ? prices_ : Prices(), slot_now(epoch, prices_.per), epoch);
+      chart_.update(ok ? prices_ : Prices(), day, epoch);
     } else {
       // The meter's short card: the name at the left and the price with its unit at the right, in one row, the
       // cells under them.
       place_row(big, small, name, height_ - cells_h_ - ui::px(6));
       // Each cell wears the colour of its place in the range, as the graph's bars do; the cells past the price are
       // a dim tint of theirs.
-      const bool known = ok && prices_.days > 0 && prices_.hi > prices_.lo;
+      const bool known = ok && prices_.today > 0 && prices_.hi > prices_.lo;
       const float share = known ? std::clamp((prices_.current - prices_.lo) / (prices_.hi - prices_.lo), 0.0f, 1.0f) : 0.0f;
       const int lit = static_cast<int>(std::lround(share * cells_n_));
       for (int i = 0; i < cells_n_; i++) {
@@ -449,7 +524,7 @@ class PriceTile : public tessera::Tile {
   }
 
   void on_tap() override {
-    if (chart_on_ && prices_.days > 0) {
+    if (chart_on_ && prices_.today > 0) {
       const tessera::Point p = tessera::tap_point();
       const int hit = p.x >= 0 ? chart_.bar_at(p.x, p.y) : -1;
       // A tap on a bar shows it; a tap on the one shown, or beside the bars, opens the card.
@@ -468,16 +543,17 @@ class PriceTile : public tessera::Tile {
   }
 
  private:
-  // The name at the left and the price with its unit at the right in one row, `room` high.
+  // The name at the left and the price with its unit at the right in one row, `room` high; without a name the price
+  // has the whole row.
   void place_row(const std::string &big, const std::string &small, const std::string &name, int room) {
     const std::string words = small.empty() ? big : big + " " + small;
     // The name keeps the tile-label face as the meter bar writes it; the price takes the largest face that leaves the
     // name its room, and only a name that fits no face steps down.
-    const int apart = ui::px(8);
-    Font face = Font::BODY_LARGE, nface = Font::BODY;
+    const int apart = ui::px(8), most = name.empty() ? width_ - 2 : width_ * 60 / 100;
+    Font face = Font::BODY, nface = Font::BODY;
     bool settled = false;
-    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE}) {
-      if (ui::text_width(words, f) > width_ * 60 / 100 || ui::line_height(f) > room) continue;
+    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE, Font::BODY}) {
+      if (ui::text_width(words, f) > most || ui::line_height(f) > room) continue;
       if (name.empty() || ui::text_width(name, Font::TITLE) <= width_ - ui::text_width(words, f) - apart) {
         face = f;
         settled = true;
@@ -485,10 +561,10 @@ class PriceTile : public tessera::Tile {
       }
     }
     if (!settled)
-      for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE})
-        if (ui::text_width(words, f) <= width_ * 60 / 100 && ui::line_height(f) <= room) { face = f; break; }
+      for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE, Font::BODY})
+        if (ui::text_width(words, f) <= most && ui::line_height(f) <= room) { face = f; break; }
     const int vh = ui::line_height(face);
-    const int vw = std::min(width_ * 60 / 100, ui::text_width(words, face));
+    const int vw = std::min(most, ui::text_width(words, face));
     for (Font f : {Font::TITLE, Font::BODY_LARGE, Font::BODY})
       if (ui::text_width(name, f) <= width_ - vw - apart) { nface = f; break; }
     ui::set_font(value_, face);
@@ -505,15 +581,10 @@ class PriceTile : public tessera::Tile {
   }
 
   // "18:00–18:15" of the shown bar.
-  std::string slot_times(uint32_t epoch) const {
-    if (!epoch) return "";
-    const int n = prices_.count();
-    const int from = chart_.bar_from(sel_), to = chart_.bar_to(sel_, n);
-    const tessera::LocalTime t = tessera::local_time(epoch);
-    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
-    const int minutes = 1440 / prices_.per;
-    const std::string a = tessera::clock_text(midnight + static_cast<uint32_t>(from) * minutes * 60);
-    const std::string b = tessera::clock_text(midnight + static_cast<uint32_t>(to) * minutes * 60);
+  std::string slot_times(const Day &day) const {
+    if (!day.known()) return "";
+    const std::string a = tessera::clock_text(day.at(chart_.bar_from(sel_)));
+    const std::string b = tessera::clock_text(day.at(chart_.bar_to(sel_, prices_.count())));
     return a + (ui::covers("\u2013", Font::BODY) ? "\u2013" : "-") + b;
   }
 
@@ -598,38 +669,41 @@ class PriceCard : public tessera::Card {
     const bool ok = prices_.chosen && prices_.has_current;
     const int gap = ui::px(8);
     // A tapped bar shows its own price and time slot for a few seconds, then the card is as it was.
-    if (sel_ >= 0 && (!ok || prices_.days == 0 || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
+    if (sel_ >= 0 && (!ok || prices_.today == 0 || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
     std::string big = ok ? number(prices_.current, decimals_) : plugin_->text(prices_.chosen ? "unavailable" : "choose");
     const std::string small = ok ? unit_text(prices_, cents_) : "";
-    Font face = Font::TITLE;
-    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE})
-      if (ui::text_width(big, f) + gap + ui::text_width(small, Font::BODY) <= left_w_) { face = f; break; }
+    // A message in place of the price has the whole header: the average, the highest and the lowest are empty then.
+    const int room = ok ? left_w_ : width_;
+    Font face = Font::BODY;
+    for (Font f : {Font::VALUE, Font::HEADLINE, Font::TITLE, Font::BODY_LARGE, Font::BODY})
+      if (ui::text_width(big, f) + (ok ? gap + ui::text_width(small, Font::BODY) : 0) <= room) { face = f; break; }
     ui::set_font(value_, face);
     ui::set_text(value_, big);
     ui::set_text(unit_, small);
     const int vh = ui::line_height(face), sh = ui::line_height(Font::BODY);
-    const int vw = std::min(left_w_, ui::text_width(big, face));
+    const int vw = std::min(room, ui::text_width(big, face));
     lv_obj_set_size(value_, std::max(1, vw + 2), vh);
     lv_obj_set_pos(value_, 0, (head_ - vh) / 2);
     lv_obj_set_size(unit_, std::max(1, left_w_ - vw - gap), sh);
     lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - sh - ui::px(2));
-    const bool graph = ok && prices_.days > 0;
+    const bool graph = ok && prices_.today > 0;
+    const Day day = day_of(prices_, epoch);
     if (graph && sel_ >= 0) {
       // The tapped bar: its time slot, and its price under it, while the price of now stays where it is.
-      ui::set_text(avg_cap_, slot_times(epoch));
+      ui::set_text(avg_cap_, slot_times(day));
       ui::set_text(avg_, with_unit(chart_.bar_value(sel_), right_x_ - left_w_));
     } else {
       ui::set_text(avg_cap_, graph ? plugin_->text("average") : "");
       ui::set_text(avg_, graph ? with_unit(prices_.avg, right_x_ - left_w_) : "");
     }
-    ui::set_text(extreme_[0], graph ? extreme_text("high", true, epoch) : "");
-    ui::set_text(extreme_[1], graph ? extreme_text("low", false, epoch) : "");
-    chart_.update(graph ? prices_ : Prices(), slot_now(epoch, prices_.per), epoch);
+    ui::set_text(extreme_[0], graph ? extreme_text("high", true, day, epoch) : "");
+    ui::set_text(extreme_[1], graph ? extreme_text("low", false, day, epoch) : "");
+    chart_.update(graph ? prices_ : Prices(), day, epoch);
     ui::set_fill(surface_, Tone::NORMAL, theme::CARD);
     lv_obj_set_style_border_color(surface_, ui::color(theme::LINE), 0);
     ui::set_text(today_, plugin_->text(graph ? "today" : "no_graph"));
     ui::set_color(today_, theme::SUBTLE);
-    const bool second = graph && prices_.days == 2 && chart_.midnight_x() > 0;
+    const bool second = graph && prices_.tomorrow > 0 && chart_.midnight_x() > 0;
     ui::set_text(tomorrow_, second ? plugin_->text("tomorrow") : "");
     ui::set_color(tomorrow_, theme::SUBTLE);
     if (second) {
@@ -642,7 +716,7 @@ class PriceCard : public tessera::Card {
   // A tap on a bar shows it; a tap on the one shown, or elsewhere, puts the card back.
   void on_tap() override {
     const tessera::Point p = tessera::tap_point();
-    const int hit = p.x >= 0 && prices_.days > 0 ? chart_.bar_at(p.x, p.y) : -1;
+    const int hit = p.x >= 0 && prices_.today > 0 ? chart_.bar_at(p.x, p.y) : -1;
     sel_ = hit >= 0 && hit != sel_ ? hit : -1;
     sel_until_ = last_epoch_ + 8;
     chart_.select(sel_);
@@ -661,13 +735,10 @@ class PriceCard : public tessera::Card {
 
  private:
   // "18:00–18:15" of the shown bar; only the start when it does not fit in the middle.
-  std::string slot_times(uint32_t epoch) const {
-    if (!epoch) return "";
-    const tessera::LocalTime t = tessera::local_time(epoch);
-    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
-    const int minutes = 1440 / prices_.per;
-    const std::string a = tessera::clock_text(midnight + static_cast<uint32_t>(chart_.bar_from(sel_)) * minutes * 60);
-    const std::string b = tessera::clock_text(midnight + static_cast<uint32_t>(chart_.bar_to(sel_, prices_.count())) * minutes * 60);
+  std::string slot_times(const Day &day) const {
+    if (!day.known()) return "";
+    const std::string a = tessera::clock_text(day.at(chart_.bar_from(sel_)));
+    const std::string b = tessera::clock_text(day.at(chart_.bar_to(sel_, prices_.count())));
     const std::string both = a + (ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-") + b;
     return ui::text_width(both, Font::BODY_LARGE) <= right_x_ - left_w_ ? both : a;
   }
@@ -693,22 +764,19 @@ class PriceCard : public tessera::Card {
     return found;
   }
 
-  std::string extreme_text(const char *key, bool high, uint32_t epoch) const {
+  std::string extreme_text(const char *key, bool high, const Day &day, uint32_t epoch) const {
     float value = 0;
     int slot = 0;
-    const int now = slot_now(epoch, prices_.per);
+    const int now = day.slot(epoch);
     if (!extreme(high, now, value, slot)) return "";
     std::string words = tessera::fill(plugin_->text(key), "value", with_unit(value, width_));
     if (ui::text_width(words, Font::BODY_LARGE) > width_ - right_x_)
       words = tessera::fill(plugin_->text(key), "value", number(value, decimals_));
-    if (!epoch) return words;
-    const tessera::LocalTime t = tessera::local_time(epoch);
-    const uint32_t midnight = epoch - (t.hour * 3600 + t.minute * 60 + t.second);
-    const int minutes = 1440 / prices_.per;
-    const std::string day = slot >= prices_.per ? std::string(plugin_->text("tomorrow")) + " " : std::string();
-    const std::string from = day + tessera::clock_text(midnight + slot * minutes * 60);
+    if (!day.known()) return words;
+    const std::string when = slot >= prices_.today ? std::string(plugin_->text("tomorrow")) + " " : std::string();
+    const std::string from = when + tessera::clock_text(day.at(slot));
     const std::string dash = ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-";
-    const std::string both = words + " \u00b7 " + from + dash + tessera::clock_text(midnight + (slot + 1) * minutes * 60);
+    const std::string both = words + " \u00b7 " + from + dash + tessera::clock_text(day.at(slot + 1));
     if (ui::text_width(both, Font::BODY_LARGE) <= width_ - right_x_) return both;
     const std::string start = words + " \u00b7 " + from;
     return ui::text_width(start, Font::BODY_LARGE) <= width_ - right_x_ ? start : words;

@@ -1,5 +1,6 @@
-"""My plugin: the ESPHome side. This file stays this short: smart_display.register_plugin() reads the id, version,
-tile memory and the screen's texts from the manifest and translations/ beside this folder (docs/FIRMWARE_API.md)."""
+"""Electricity price: the ESPHome side. The tiles and the card are in electricity_price.cpp; this file stays this
+short: smart_display.register_plugin() reads the id, version, tile memory and the screen's texts from the manifest and
+translations/ beside this folder (docs/FIRMWARE_API.md)."""
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import smart_display

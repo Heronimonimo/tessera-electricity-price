@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.6
+- A sensor that reports per MWh shows its price per kWh, in EUR/kWh and in ct/kWh alike. Before, ct/kWh multiplied a
+  price per MWh by 100.
+- On the days the clock changes (23 or 25 hours), the bar of now, the times under the graph and the time slots of a
+  tapped bar and of the highest and lowest price are right. Before, they were an hour off after the change.
+- When tomorrow's prices come in another resolution than today's (hours beside quarters), the graph shows them in
+  today's, without gaps.
+- "Choose a price sensor" and "No price" fit on a small tile and on the card, in every language: without a price
+  the message takes the whole row, in a smaller font where needed. Before, it was cut off.
+
 ## 0.6.5
 - The tiles also take the whole page (`full: true`): a tile as big as the grid, such as 5x5 on a 5x5 grid, was not offered before.
 - The editor shows the price with its unit.
