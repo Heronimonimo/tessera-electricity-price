@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+- A tapped bar shows its feed-in price too: after its time on a tile, where it fits, and on the card in the feed-in
+  line, with its time slot.
+
 ## 0.8.0
 - The tariff is a formula you type, one for delivery and one for feed-in: `(p+0.12)*1.21`, `p-0.02`, or a number
   alone for a fixed price. p is the sensor's price per kWh; + - * /, brackets and a decimal point or comma work.

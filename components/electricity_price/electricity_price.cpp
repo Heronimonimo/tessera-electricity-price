@@ -268,6 +268,8 @@ class Chart {
     return i >= 0 && i < bars_now_ && !std::isnan(value_[i]) ? i : -1;
   }
   float bar_value(int i) const { return value_[i]; }
+  // The feed-in price bar i stands on; 0 without one.
+  float bar_feed(int i) const { return base_[i]; }
   // The first and the one past the last slot (of all the days) that bar i stands for.
   int bar_from(int i) const { return i * group_; }
   int bar_to(int i, int n) const { return std::min(n, (i + 1) * group_); }
@@ -538,6 +540,14 @@ class PriceTile : public tessera::Tile {
     if (sel_ >= 0) {
       big = number(chart_.bar_value(sel_), decimals_);
       name = slot_times(day);
+      // With a feed-in price, the bar's own after its time: "18:00–18:15 · Feed-in 0.250", where it fits beside
+      // the price (at most as large as the headline face the row takes).
+      if (prices_.has_feed) {
+        const std::string with = name + " \u00b7 " +
+                                 tessera::fill(plugin_->text("feed_in"), "value", number(chart_.bar_feed(sel_), decimals_));
+        const int room = width_ - ui::text_width(small.empty() ? big : big + " " + small, Font::HEADLINE) - ui::px(8);
+        if (ui::text_width(with, Font::BODY) <= room) name = with;
+      }
     }
     // A message ("Choose a price sensor") that does not fit beside the name takes the whole row.
     if (!ok && ui::text_width(big, Font::BODY_LARGE) > width_ * 60 / 100) name.clear();
@@ -765,12 +775,23 @@ class PriceCard : public tessera::Card {
     lv_obj_set_pos(value_, 0, (row_h_ - vh) / 2);
     lv_obj_set_size(unit_, std::max(1, left_w_ - vw - gap), sh);
     lv_obj_set_pos(unit_, vw + gap, (row_h_ - vh) / 2 + vh - sh - ui::px(2));
-    ui::set_text(feed_, ok && prices_.has_feed
-                            ? tessera::fill(plugin_->text("feed_in"), "value", with_unit(prices_.feed_current, width_))
-                            : "");
-    ui::set_color(feed_, theme::MUTED);
     const bool graph = ok && prices_.today > 0;
     const Day day = day_of(prices_, epoch);
+    // The feed-in price of now under the price; a tapped bar's own, with its time slot behind it, while it shows.
+    std::string feed;
+    if (ok && prices_.has_feed) {
+      const bool tapped = graph && sel_ >= 0;
+      feed = tessera::fill(plugin_->text("feed_in"), "value",
+                           with_unit(tapped ? chart_.bar_feed(sel_) : prices_.feed_current, width_));
+      if (tapped && day.known()) {
+        const std::string with = feed + " \u00b7 " + tessera::clock_text(day.at(chart_.bar_from(sel_))) +
+                                 (ui::covers("\u2013", Font::BODY_LARGE) ? "\u2013" : "-") +
+                                 tessera::clock_text(day.at(chart_.bar_to(sel_, prices_.count())));
+        if (ui::text_width(with, Font::BODY_LARGE) <= width_) feed = with;
+      }
+    }
+    ui::set_text(feed_, feed);
+    ui::set_color(feed_, theme::MUTED);
     if (graph && sel_ >= 0) {
       // The tapped bar: its time slot, and its price under it, while the price of now stays where it is.
       ui::set_text(avg_cap_, slot_times(day));
