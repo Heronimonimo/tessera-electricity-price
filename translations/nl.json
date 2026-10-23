@@ -9,7 +9,8 @@
     "low": "Laag {value}",
     "high": "Hoog {value}",
     "average": "Gemiddeld",
-    "no_graph": "Geen prijzen voor vandaag"
+    "no_graph": "Geen prijzen voor vandaag",
+    "feed_in": "Teruglevering {value}"
   },
   "app": {
     "name": "Stroomprijs",
@@ -24,6 +25,20 @@
     "unit_eur": "EUR/kWh",
     "unit_cents": "ct/kWh",
     "decimals": "Decimalen",
-    "decimals_hint": "Hoeveel decimalen de prijs toont. In centen is er één genoeg."
+    "decimals_hint": "Hoeveel decimalen de prijs toont. In centen is er één genoeg.",
+    "extra": "Levering: a",
+    "extra_hint": "Je leveringsprijs per kWh is (p + a) × b + c, met p de prijs van de sensor per kWh in zijn eigen munt, ook als je centen toont. Zet de energiebelasting en de opslag van je leverancier in a.",
+    "factor": "Levering: b",
+    "factor_hint": "De factor: 1,21 telt 21% btw erbij. 0 laat alleen c over, een vaste prijs.",
+    "plus": "Levering: c",
+    "plus_hint": "Komt na de factor erbij. Voor een vaste prijs: b 0 en c je prijs per kWh.",
+    "feed_in": "Terugleverprijs",
+    "feed_in_hint": "Toon ook wat een kWh die je teruglevert oplevert. Elke balk loopt dan van de terugleverprijs tot de leveringsprijs.",
+    "feed_extra": "Teruglevering: a",
+    "feed_extra_hint": "Je terugleverprijs per kWh is (p + a) × b + c, net als bij levering. De aftrek van je leverancier is een negatieve a.",
+    "feed_factor": "Teruglevering: b",
+    "feed_factor_hint": "De factor: 1 zonder btw. 0 laat alleen c over, een vaste terugleverprijs.",
+    "feed_plus": "Teruglevering: c",
+    "feed_plus_hint": "Komt na de factor erbij. Voor een vaste terugleverprijs: b 0 en c de prijs per kWh."
   }
 }

@@ -1,13 +1,14 @@
-# What tools/preview.py shows: a Nord Pool sensor with quarters of today and tomorrow, and an ENTSO-e sensor with
-# the hours of today.
+# What tools/preview.py shows: a Nord Pool sensor with quarters of today and tomorrow, with a Dutch tariff and a
+# feed-in price, and an ENTSO-e sensor with the hours of today and a fixed feed-in price that is at times above it.
 tiles:
   - tile: nordpool
     name: Nord Pool
     entity: sensor.nordpool
+    options: { extra: 0.12, factor: 1.21, feed_in: true, feed_extra: -0.02 }
   - tile: entsoe
     name: ENTSO-e
     entity: sensor.entsoe
-    options: { unit: cents, fixed: 1 }
+    options: { unit: cents, fixed: 1, feed_in: true, feed_factor: 0, feed_plus: 0.30 }
 
 states:
   sensor.nordpool:

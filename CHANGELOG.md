@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+- Your own tariff on top of the market price: the delivery price is (p + a) × b + c, with a for the energy tax and the
+  supplier's surcharge, b for the VAT and c added after it. b 0 and c your price make a fixed price.
+- An optional feed-in price, (p + a) × b + c with its own a, b and c. With it each bar of the graph runs from the
+  feed-in price up to the delivery price; the colours stay those of the delivery price.
+- The feed-in price of now under the price on the meter tile, where it has room, and under the price on the card.
+
 ## 0.6.6
 - A sensor that reports per MWh shows its price per kWh, in EUR/kWh and in ct/kWh alike. Before, ct/kWh multiplied a
   price per MWh by 100.

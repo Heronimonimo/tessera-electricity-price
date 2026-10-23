@@ -19,11 +19,13 @@ constexpr int TILE_BARS = 100;  // a tile draws at most this many bars (memory);
 
 // ---- The prices: what the sensor says, one price per slot (a quarter of an hour when the sensor has them, else an hour) ----
 struct Prices {
-  float slot[MAX_SLOTS] = {};
+  float slot[MAX_SLOTS] = {};  // the delivery price, the tariff's formula applied
+  float feed[MAX_SLOTS] = {};  // the feed-in price, when the tariff has one
   int today = 0;     // today's slots: 24 hours or 96 quarters, 23/25 or 92/100 on the days the clock changes; 0: no graph
   int tomorrow = 0;  // tomorrow's, in today's resolution, after today's; 0 until the sensor has them
-  float current = 0;
+  float current = 0, feed_current = 0;
   bool has_current = false;
+  bool has_feed = false;  // the tariff has a feed-in price: `feed` and `feed_current` hold it
   bool chosen = false;  // the tile has a sensor
   char unit[16] = "";
   float lo = 0, hi = 0, avg = 0;  // of today
@@ -77,14 +79,37 @@ static int resolve(float *day, int n, bool quarters) {
   return hours;
 }
 
-static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
+// What the person pays and gets per kWh, from the sensor's price p per kWh in its own currency: delivery is
+// (p + add) x mul + plus, and feed-in, when it is on, (p + feed_add) x feed_mul + feed_plus. The defaults leave the
+// price as it is; mul 0 makes a fixed price of `plus`.
+struct Tariff {
+  float add = 0, mul = 1, plus = 0, feed_add = 0, feed_mul = 1, feed_plus = 0;
+  bool feed = false;
+  float delivery(float p) const { return (p + add) * mul + plus; }
+  float feed_in(float p) const { return (p + feed_add) * feed_mul + feed_plus; }
+};
+
+static Tariff tariff_of(JsonObjectConst options) {
+  Tariff t;
+  t.add = options["extra"] | 0.0f;
+  t.mul = options["factor"] | 1.0f;
+  t.plus = options["plus"] | 0.0f;
+  t.feed = options["feed_in"] | false;
+  t.feed_add = options["feed_extra"] | 0.0f;
+  t.feed_mul = options["feed_factor"] | 1.0f;
+  t.feed_plus = options["feed_plus"] | 0.0f;
+  return t;
+}
+
+static void read_prices(JsonObjectConst data, bool cents, const Tariff &tariff, Prices &p) {
   p.today = p.tomorrow = 0;
-  p.has_current = false;
+  p.has_current = p.has_feed = false;
   p.chosen = !data["state"].isNull();
   if (!p.chosen) return;
   // A price per MWh is made one per kWh, so the units, the decimals and the graph's labels read as for a sensor per kWh.
   snprintf(p.unit, sizeof(p.unit), "%s", data["attributes"]["unit_of_measurement"] | "");
-  float scale = cents ? 100.0f : 1.0f;
+  float scale = 1.0f;  // to the sensor's currency per kWh, which the tariff's formula takes
+  const float shown = cents ? 100.0f : 1.0f;
   if (char *slash = strchr(p.unit, '/')) {
     if (strcmp(slash + 1, "MWh") == 0) {
       scale /= 1000.0f;
@@ -95,12 +120,20 @@ static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
   char *end = nullptr;
   const float v = strtof(state, &end);
   if (end != state && *end == 0) {
-    p.current = v * scale;
+    p.current = tariff.delivery(v * scale) * shown;
+    p.feed_current = tariff.feed_in(v * scale) * shown;
     p.has_current = true;
+    p.has_feed = tariff.feed;
   }
   JsonObjectConst a = data["attributes"];
   p.today = read_day(a["today"], scale, p.slot);
   if (p.today) p.tomorrow = resolve(p.slot + p.today, read_day(a["tomorrow"], scale, p.slot + p.today), p.today >= 90);
+  for (int s = 0; s < p.count(); s++) {
+    const float kwh = p.slot[s];
+    p.slot[s] = std::isnan(kwh) ? NAN : tariff.delivery(kwh) * shown;
+    p.feed[s] = std::isnan(kwh) ? NAN : tariff.feed_in(kwh) * shown;
+  }
+  if (p.today && tariff.feed) p.has_feed = true;
   float lo = INFINITY, hi = -INFINITY, sum = 0;
   int n = 0;
   p.lo_slot = p.hi_slot = 0;
@@ -115,6 +148,8 @@ static void read_prices(JsonObjectConst data, bool cents, Prices &p) {
   p.hi = n ? hi : 0;
   p.avg = n ? sum / n : 0;
 }
+
+static const Prices NO_PRICES{};
 
 static std::string number(float v, int decimals) {
   char buf[24];
@@ -242,7 +277,9 @@ class Chart {
   int bar_to(int i, int n) const { return std::min(n, (i + 1) * group_); }
   void select(int i) { sel_ = i; }
 
-  // The past is grey, the bar of now the accent, the bars to come green, amber or red by their place in the range.
+  // The past is grey, the bar of now the accent, the bars to come green, amber or red by their place in the range of
+  // the delivery price. With a feed-in price each bar stands on it instead of on zero: it runs from what a kWh brings
+  // to what it costs.
   void update(const Prices &p, const Day &d, uint32_t epoch) {
     const int n = p.count();
     const int now = d.slot(epoch);
@@ -259,9 +296,20 @@ class Chart {
         seen++;
       }
       v[b] = seen ? sum / seen : NAN;
+      base_[b] = 0;
       if (std::isnan(v[b])) continue;
-      lo = std::min(lo, v[b]);
-      hi = std::max(hi, v[b]);
+      if (p.has_feed) {
+        float feed = 0;
+        int known = 0;
+        for (int s = b * group; s < std::min(n, (b + 1) * group); s++) {
+          if (std::isnan(p.feed[s])) continue;
+          feed += p.feed[s];
+          known++;
+        }
+        base_[b] = known ? feed / known : 0;
+      }
+      lo = std::min({lo, v[b], base_[b]});
+      hi = std::max({hi, v[b], base_[b]});
       mn = std::min(mn, v[b]);
       mx = std::max(mx, v[b]);
     }
@@ -323,12 +371,12 @@ class Chart {
       ui::set_color(price_[i], theme::SUBTLE);
     }
 
-    // The bars, from the line of zero.
+    // The bars, from the line of zero or from the feed-in price.
     // The bars share the whole width of the plot, also when it does not divide by their number.
     const int slot = aw_ / bars;
     const int gap = slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);
     const auto edge_x = [&](int i) { return static_cast<int>(static_cast<long long>(aw_) * i / bars); };
-    const int zero = ay_ + static_cast<int>(std::lround(ah_ * top / range));
+    const auto y_of = [&](float value) { return ay_ + static_cast<int>(std::lround(ah_ * (top - value) / range)); };
     const int now_bar = now < 0 ? -1 : now / group;
     for (int i = 0; i < bars_n_; i++) {
       lv_obj_t *bar = bars_[i];
@@ -337,9 +385,10 @@ class Chart {
         continue;
       }
       lv_obj_clear_flag(bar, LV_OBJ_FLAG_HIDDEN);
-      const int len = std::max(2, static_cast<int>(std::lround(std::fabs(v[i]) / range * ah_)));
+      const int high = y_of(std::max(v[i], base_[i])), low = y_of(std::min(v[i], base_[i]));
+      const int len = std::max(2, low - high);
       lv_obj_set_size(bar, std::max(1, edge_x(i + 1) - edge_x(i) - gap), len);
-      lv_obj_set_pos(bar, ax_ + edge_x(i), v[i] >= 0 ? zero - len : zero);
+      lv_obj_set_pos(bar, ax_ + edge_x(i), v[i] >= base_[i] ? low - len : high);
       if (i == sel_) {
         ui::set_fill(bar, Tone::NORMAL, theme::INK);
       } else if (i < now_bar) {
@@ -418,13 +467,14 @@ class Chart {
   int x_ = 0, ax_ = 0, ay_ = 0, aw_ = 1, ah_ = 1, label_w_ = 0, label_h_ = 0, time_y_ = 0, mark_y_ = 0, mark_h_ = 0;
   int bars_n_ = 0, times_n_ = 0, mid_x_ = 0;
   int group_ = 1, bars_now_ = 0, sel_ = -1;
-  float value_[MAX_SLOTS]{};
+  float value_[MAX_SLOTS]{}, base_[MAX_SLOTS]{};  // each bar's delivery price, and the price it stands on
 };
 
 // What a card takes over from the tile that opened it: the tile's options and its last prices.
 struct Shared {
   bool cents = false;
   int decimals = 3;
+  Tariff tariff;
   Prices prices;
 };
 
@@ -439,6 +489,7 @@ class PriceTile : public tessera::Tile {
     entity_ = c.entity;
     cents_ = strcmp(c.options["unit"] | "eur", "cents") == 0;
     decimals_ = std::min<int>(static_cast<int>(std::lround(c.options["fixed"] | 3.0f)), cents_ ? 1 : 4);  // 3 or 3.0
+    tariff_ = tariff_of(c.options);
     head_ = ui::line_height(Font::HEADLINE);
     const int gap = ui::px(6);
     const int axis = ui::line_height(Font::BODY) + ui::px(ui::large() ? 8 : 4);
@@ -447,6 +498,8 @@ class PriceTile : public tessera::Tile {
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     name_text_ = c.name ? c.name : "";
     name_ = ui::label(c.parent, Font::TITLE, theme::MUTED);
+    feed_ = ui::label(c.parent, Font::BODY, theme::MUTED);
+    lv_obj_set_style_text_align(feed_, LV_TEXT_ALIGN_RIGHT, 0);
     if (chart_on_) {
       chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, 12, cents_);
       return;
@@ -467,7 +520,7 @@ class PriceTile : public tessera::Tile {
     }
   }
 
-  void on_state(JsonObjectConst data) override { read_prices(data, cents_, prices_); }
+  void on_state(JsonObjectConst data) override { read_prices(data, cents_, tariff_, prices_); }
 
   void on_tick(uint32_t epoch) override {
     std::string big, small;
@@ -493,11 +546,21 @@ class PriceTile : public tessera::Tile {
     if (chart_on_) {
       // The name at the left and the price with its unit at the right, over the graph.
       place_row(big, small, name, head_);
-      chart_.update(ok ? prices_ : Prices(), day, epoch);
+      ui::set_text(feed_, "");
+      chart_.update(ok ? prices_ : NO_PRICES, day, epoch);
     } else {
       // The meter's short card: the name at the left and the price with its unit at the right, in one row, the
-      // cells under them.
-      place_row(big, small, name, height_ - cells_h_ - ui::px(6));
+      // cells under them. The feed-in price, when there is one, has a line of its own under the price where the
+      // tile has room for it.
+      int room = height_ - cells_h_ - ui::px(6);
+      const int fh = ui::line_height(Font::BODY);
+      const bool feed = ok && prices_.has_feed && room - fh >= ui::line_height(Font::BODY_LARGE);
+      if (feed) room -= fh;
+      place_row(big, small, name, room);
+      ui::set_text(feed_, feed ? feed_text(prices_.feed_current, width_) : "");
+      lv_obj_set_size(feed_, std::max(1, width_ - 2), fh);
+      lv_obj_set_pos(feed_, 0, room);
+      ui::set_color(feed_, theme::MUTED);
       // Each cell wears the colour of its place in the range, as the graph's bars do; the cells past the price are
       // a dim tint of theirs.
       const bool known = ok && prices_.today > 0 && prices_.hi > prices_.lo;
@@ -538,6 +601,7 @@ class PriceTile : public tessera::Tile {
     }
     shared_->cents = cents_;
     shared_->decimals = decimals_;
+    shared_->tariff = tariff_;
     shared_->prices = prices_;
     tessera::open_card(plugin_->plugin_id(), "prices", entity_, tile_);
   }
@@ -588,6 +652,13 @@ class PriceTile : public tessera::Tile {
     return a + (ui::covers("\u2013", Font::BODY) ? "\u2013" : "-") + b;
   }
 
+  // "Feed-in 0.120 €/kWh"; without the unit when that does not fit in `room`.
+  std::string feed_text(float value, int room) const {
+    const std::string n = number(value, decimals_), unit = unit_text(prices_, cents_);
+    const std::string both = tessera::fill(plugin_->text("feed_in"), "value", unit.empty() ? n : n + " " + unit);
+    return ui::text_width(both, Font::BODY) <= room ? both : tessera::fill(plugin_->text("feed_in"), "value", n);
+  }
+
   const tessera::Plugin *plugin_;
   Shared *shared_;
   int sel_ = -1;
@@ -595,11 +666,12 @@ class PriceTile : public tessera::Tile {
   std::string entity_, name_text_;
   Prices prices_;
   Chart chart_;
+  Tariff tariff_;
   bool cents_ = false, chart_on_ = false;
   int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, tile_ = -1;
   int cells_n_ = 0, cells_h_ = 0, cell_gap_ = 1;
   uint32_t last_epoch_ = 0;
-  lv_obj_t *value_{}, *unit_{}, *name_{}, *cells_[MAX_CELLS]{};
+  lv_obj_t *value_{}, *unit_{}, *name_{}, *feed_{}, *cells_[MAX_CELLS]{};
 };
 
 // ---- The card: the price now, the day's lowest, highest and average, and the graph of today and tomorrow ----
@@ -613,9 +685,15 @@ class PriceCard : public tessera::Card {
     prices_ = shared_->prices;
     cents_ = shared_->cents;
     decimals_ = shared_->decimals;
+    tariff_ = shared_->tariff;
     const int gap = ui::px(8);
     const int text_h = ui::line_height(Font::BODY_LARGE);
-    head_ = std::max(ui::line_height(Font::VALUE), 2 * text_h);
+    row_h_ = std::max(ui::line_height(Font::VALUE), 2 * text_h);
+    // The feed-in price of now, when the tariff has one: a line under the header's row, at the left under the price.
+    head_ = tariff_.feed ? row_h_ + text_h : row_h_;
+    feed_ = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
+    lv_obj_set_size(feed_, width_, text_h);
+    lv_obj_set_pos(feed_, 0, row_h_);
     value_ = ui::label(c.parent, Font::VALUE, theme::INK);
     unit_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     // The header as the history card has it: the price at the left, the average in the middle, and at the right the
@@ -626,16 +704,16 @@ class PriceCard : public tessera::Card {
     avg_cap_ = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
     lv_obj_set_size(avg_cap_, right_x_ - left_w_, text_h);
     lv_obj_set_style_text_align(avg_cap_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(avg_cap_, left_w_, (head_ - 2 * text_h) / 2);
+    lv_obj_set_pos(avg_cap_, left_w_, (row_h_ - 2 * text_h) / 2);
     avg_ = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
     lv_obj_set_size(avg_, right_x_ - left_w_, text_h);
     lv_obj_set_style_text_align(avg_, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_pos(avg_, left_w_, (head_ - 2 * text_h) / 2 + text_h);
+    lv_obj_set_pos(avg_, left_w_, (row_h_ - 2 * text_h) / 2 + text_h);
     for (int i = 0; i < 2; i++) {
       extreme_[i] = ui::label(c.parent, Font::BODY_LARGE, theme::MUTED);
       lv_obj_set_size(extreme_[i], width_ - right_x_, text_h);
       lv_obj_set_style_text_align(extreme_[i], LV_TEXT_ALIGN_RIGHT, 0);
-      lv_obj_set_pos(extreme_[i], right_x_, (head_ - 2 * text_h) / 2 + i * text_h);
+      lv_obj_set_pos(extreme_[i], right_x_, (row_h_ - 2 * text_h) / 2 + i * text_h);
     }
     int y = head_ + gap;
     // The graph on a card of its own, as the history graph sits on one: a day label row, then the plot.
@@ -660,7 +738,7 @@ class PriceCard : public tessera::Card {
   }
 
   void on_state(JsonObjectConst data) override {
-    read_prices(data, cents_, prices_);
+    read_prices(data, cents_, tariff_, prices_);
     on_tick(last_epoch_);
   }
 
@@ -683,9 +761,13 @@ class PriceCard : public tessera::Card {
     const int vh = ui::line_height(face), sh = ui::line_height(Font::BODY);
     const int vw = std::min(room, ui::text_width(big, face));
     lv_obj_set_size(value_, std::max(1, vw + 2), vh);
-    lv_obj_set_pos(value_, 0, (head_ - vh) / 2);
+    lv_obj_set_pos(value_, 0, (row_h_ - vh) / 2);
     lv_obj_set_size(unit_, std::max(1, left_w_ - vw - gap), sh);
-    lv_obj_set_pos(unit_, vw + gap, (head_ - vh) / 2 + vh - sh - ui::px(2));
+    lv_obj_set_pos(unit_, vw + gap, (row_h_ - vh) / 2 + vh - sh - ui::px(2));
+    ui::set_text(feed_, ok && prices_.has_feed
+                            ? tessera::fill(plugin_->text("feed_in"), "value", with_unit(prices_.feed_current, width_))
+                            : "");
+    ui::set_color(feed_, theme::MUTED);
     const bool graph = ok && prices_.today > 0;
     const Day day = day_of(prices_, epoch);
     if (graph && sel_ >= 0) {
@@ -698,7 +780,7 @@ class PriceCard : public tessera::Card {
     }
     ui::set_text(extreme_[0], graph ? extreme_text("high", true, day, epoch) : "");
     ui::set_text(extreme_[1], graph ? extreme_text("low", false, day, epoch) : "");
-    chart_.update(graph ? prices_ : Prices(), day, epoch);
+    chart_.update(graph ? prices_ : NO_PRICES, day, epoch);
     ui::set_fill(surface_, Tone::NORMAL, theme::CARD);
     lv_obj_set_style_border_color(surface_, ui::color(theme::LINE), 0);
     ui::set_text(today_, plugin_->text(graph ? "today" : "no_graph"));
@@ -726,6 +808,7 @@ class PriceCard : public tessera::Card {
   void on_theme() override {
     ui::set_color(value_, theme::INK);
     ui::set_color(unit_, theme::MUTED);
+    ui::set_color(feed_, theme::MUTED);
     ui::set_color(avg_cap_, theme::MUTED);
     ui::set_color(avg_, theme::INK);
     ui::set_color(extreme_[0], theme::MUTED);
@@ -786,12 +869,13 @@ class PriceCard : public tessera::Card {
   Shared *shared_;
   Prices prices_;
   Chart chart_;
+  Tariff tariff_;
   bool cents_ = false;
   int sel_ = -1;
   uint32_t sel_until_ = 0;
-  int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, left_w_ = 0, right_x_ = 0;
+  int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, row_h_ = 0, left_w_ = 0, right_x_ = 0;
   uint32_t last_epoch_ = 0;
-  lv_obj_t *value_{}, *unit_{}, *avg_cap_{}, *avg_{}, *extreme_[2]{}, *today_{}, *tomorrow_{}, *surface_{};
+  lv_obj_t *value_{}, *unit_{}, *feed_{}, *avg_cap_{}, *avg_{}, *extreme_[2]{}, *today_{}, *tomorrow_{}, *surface_{};
 };
 
 void ElectricityPrice::setup() {

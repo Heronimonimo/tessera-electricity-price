@@ -14,7 +14,22 @@ It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.
    2x2 shows the price with the meter bar; from 2x2 up it adds the graph.
 3. In the inspector, choose your price sensor. The list holds only the sensors that fit the tile you placed.
 4. Choose the unit, **EUR/kWh** (`0.273`) or **ct/kWh** (`27.3`), and the number of decimals (in ct/kWh at most one).
-5. Tap a bar of the graph to see its price and time slot for a few seconds, on a bigger tile and on the full screen card. On a tile, tap that bar again, or beside the bars, to open the card: the price now, the lowest and highest still to come, the day's average, and the graph.
+5. Optionally set your tariff (below).
+6. Tap a bar of the graph to see its price and time slot for a few seconds, on a bigger tile and on the full screen card. On a tile, tap that bar again, or beside the bars, to open the card: the price now, the lowest and highest still to come, the day's average, and the graph.
+
+## Your tariff
+
+The sensor gives the market price p. The tile can show what you really pay, and what you get back:
+
+- **Delivery**: (p + **a**) × **b** + **c**. Put the energy tax and your supplier's surcharge in a, the VAT in b
+  (1.21 for 21%), and anything that comes after the VAT in c. A fixed price: b 0 and c your price.
+- **Feed-in** (switch on **Feed-in price**): (p + a) × b + c with its own a, b and c. A supplier that deducts
+  2 cents is a = -0.02, b = 1.
+
+a and c are in the sensor's currency per kWh (0.02, not 2), also when the tile shows cents. With a feed-in price
+each bar runs from the feed-in price up to the delivery price, so you see the gap between the two over the day.
+The tile and the card show the feed-in price of now under the price. The editor's preview shows the sensor's own
+price: it cannot work out the formula.
 
 ## Good to know
 
