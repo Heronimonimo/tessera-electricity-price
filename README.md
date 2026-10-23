@@ -19,17 +19,24 @@ It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.
 
 ## Your tariff
 
-The sensor gives the market price p. The tile can show what you really pay, and what you get back:
+The sensor gives the market price p. In the inspector you can type what you really pay, and what you get back, as a
+formula in p:
 
-- **Delivery**: (p + **a**) × **b** + **c**. Put the energy tax and your supplier's surcharge in a, the VAT in b
-  (1.21 for 21%), and anything that comes after the VAT in c. A fixed price: b 0 and c your price.
-- **Feed-in** (switch on **Feed-in price**): (p + a) × b + c with its own a, b and c. A supplier that deducts
-  2 cents is a = -0.02, b = 1.
+| Field | Example | Means |
+|---|---|---|
+| **Delivery price** | `(p+0.12)*1.21` | Energy tax and surcharge on top, then 21% VAT |
+| | `0.25` | A fixed price |
+| **Feed-in price** | `p-0.02` | The market price minus your supplier's 2 cents |
+| | `0,07` | A fixed feed-in price |
 
-a and c are in the sensor's currency per kWh (0.02, not 2), also when the tile shows cents. With a feed-in price
-each bar runs from the feed-in price up to the delivery price, so you see the gap between the two over the day.
-The tile and the card show the feed-in price of now under the price. The editor's preview shows the sensor's own
-price: it cannot work out the formula.
+A formula has p, numbers (`0.12` or `0,12`), `+ - * /` and brackets. The numbers are in the sensor's currency per
+kWh (0.02, not 2), also when the tile shows cents. An empty delivery price is the sensor's own price; an empty feed-in
+price is none. A formula with a typo shows "Check the formula" on the screen in place of the price; the editor
+cannot check it for you.
+
+With a feed-in price each bar runs from the feed-in price to the delivery price, so you see the gap between the two
+over the day, also when feed-in is the higher one. The tile and the card show the feed-in price of now under the
+price. The editor's preview shows the sensor's own price: it cannot work out the formula.
 
 ## Good to know
 

@@ -10,7 +10,8 @@
     "high": "High {value}",
     "average": "Average",
     "no_graph": "No prices for today",
-    "feed_in": "Feed-in {value}"
+    "feed_in": "Feed-in {value}",
+    "formula_error": "Check the formula"
   },
   "app": {
     "name": "Electricity price",
@@ -26,19 +27,9 @@
     "unit_cents": "ct/kWh",
     "decimals": "Decimals",
     "decimals_hint": "How many decimals the price shows. In cents one is enough.",
-    "extra": "Delivery: a",
-    "extra_hint": "Your delivery price per kWh is (p + a) × b + c, with p the sensor's price per kWh in its own currency, also when you show cents. Put the energy tax and your supplier's surcharge in a.",
-    "factor": "Delivery: b",
-    "factor_hint": "The factor: 1.21 adds 21% VAT. 0 leaves only c, a fixed price.",
-    "plus": "Delivery: c",
-    "plus_hint": "Added after the factor. For a fixed price: b 0 and c your price per kWh.",
     "feed_in": "Feed-in price",
-    "feed_in_hint": "Also show what a kWh you feed back brings. Each bar then runs from the feed-in price up to the delivery price.",
-    "feed_extra": "Feed-in: a",
-    "feed_extra_hint": "Your feed-in price per kWh is (p + a) × b + c, as for delivery. Your supplier's deduction is a negative a.",
-    "feed_factor": "Feed-in: b",
-    "feed_factor_hint": "The factor: 1 without VAT. 0 leaves only c, a fixed feed-in price.",
-    "feed_plus": "Feed-in: c",
-    "feed_plus_hint": "Added after the factor. For a fixed feed-in price: b 0 and c the price per kWh."
+    "feed_in_hint": "A formula in p for what a kWh you feed back brings, such as p-0.02, or a fixed price such as 0.07. Each bar then runs from the feed-in price to the delivery price. Empty: no feed-in price.",
+    "delivery": "Delivery price",
+    "delivery_hint": "A formula in p, the sensor's price per kWh in its own currency (also when you show cents): (p+0.12)*1.21 adds the energy tax and surcharge, then 21% VAT. A number alone is a fixed price. Empty: the sensor's price."
   }
 }

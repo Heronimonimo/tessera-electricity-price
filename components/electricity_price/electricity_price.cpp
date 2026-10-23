@@ -1,4 +1,5 @@
 #include "electricity_price.h"
+#include "formula.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -79,25 +80,20 @@ static int resolve(float *day, int n, bool quarters) {
   return hours;
 }
 
-// What the person pays and gets per kWh, from the sensor's price p per kWh in its own currency: delivery is
-// (p + add) x mul + plus, and feed-in, when it is on, (p + feed_add) x feed_mul + feed_plus. The defaults leave the
-// price as it is; mul 0 makes a fixed price of `plus`.
+// What the person pays and gets per kWh: the formulas typed for delivery and for feed-in, in p, the sensor's price per
+// kWh in its own currency. An empty delivery formula is p; an empty feed-in formula is no feed-in price.
 struct Tariff {
-  float add = 0, mul = 1, plus = 0, feed_add = 0, feed_mul = 1, feed_plus = 0;
-  bool feed = false;
-  float delivery(float p) const { return (p + add) * mul + plus; }
-  float feed_in(float p) const { return (p + feed_add) * feed_mul + feed_plus; }
+  Formula delivery, feed_in;
+  bool feed = false;   // a feed-in formula was typed
+  bool error = false;  // one of them is not a formula: the tile says so in place of a price that would be wrong
 };
 
 static Tariff tariff_of(JsonObjectConst options) {
   Tariff t;
-  t.add = options["extra"] | 0.0f;
-  t.mul = options["factor"] | 1.0f;
-  t.plus = options["plus"] | 0.0f;
-  t.feed = options["feed_in"] | false;
-  t.feed_add = options["feed_extra"] | 0.0f;
-  t.feed_mul = options["feed_factor"] | 1.0f;
-  t.feed_plus = options["feed_plus"] | 0.0f;
+  const bool delivery = t.delivery.parse(options["delivery"] | "");
+  const bool feed_in = t.feed_in.parse(options["feed_in"] | "");
+  t.feed = t.feed_in.set();
+  t.error = !delivery || !feed_in;
   return t;
 }
 
@@ -105,7 +101,7 @@ static void read_prices(JsonObjectConst data, bool cents, const Tariff &tariff, 
   p.today = p.tomorrow = 0;
   p.has_current = p.has_feed = false;
   p.chosen = !data["state"].isNull();
-  if (!p.chosen) return;
+  if (!p.chosen || tariff.error) return;
   // A price per MWh is made one per kWh, so the units, the decimals and the graph's labels read as for a sensor per kWh.
   snprintf(p.unit, sizeof(p.unit), "%s", data["attributes"]["unit_of_measurement"] | "");
   float scale = 1.0f;  // to the sensor's currency per kWh, which the tariff's formula takes
@@ -526,6 +522,8 @@ class PriceTile : public tessera::Tile {
     std::string big, small;
     if (!prices_.chosen) {
       big = plugin_->text("choose");
+    } else if (tariff_.error) {
+      big = plugin_->text("formula_error");
     } else if (!prices_.has_current) {
       big = plugin_->text("unavailable");
     } else {
@@ -748,7 +746,10 @@ class PriceCard : public tessera::Card {
     const int gap = ui::px(8);
     // A tapped bar shows its own price and time slot for a few seconds, then the card is as it was.
     if (sel_ >= 0 && (!ok || prices_.today == 0 || epoch >= sel_until_)) { sel_ = -1; chart_.select(-1); }
-    std::string big = ok ? number(prices_.current, decimals_) : plugin_->text(prices_.chosen ? "unavailable" : "choose");
+    std::string big = ok                  ? number(prices_.current, decimals_)
+                      : !prices_.chosen   ? plugin_->text("choose")
+                      : tariff_.error     ? plugin_->text("formula_error")
+                                          : plugin_->text("unavailable");
     const std::string small = ok ? unit_text(prices_, cents_) : "";
     // A message in place of the price has the whole header: the average, the highest and the lowest are empty then.
     const int room = ok ? left_w_ : width_;

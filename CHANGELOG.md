@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+- The tariff is a formula you type, one for delivery and one for feed-in: `(p+0.12)*1.21`, `p-0.02`, or a number
+  alone for a fixed price. p is the sensor's price per kWh; + - * /, brackets and a decimal point or comma work.
+  A formula with a typo shows "Check the formula" in place of the price.
+- The a, b and c options of 0.7.0 are gone: type your tariff again as a formula.
+
 ## 0.7.0
 - Your own tariff on top of the market price: the delivery price is (p + a) × b + c, with a for the energy tax and the
   supplier's surcharge, b for the VAT and c added after it. b 0 and c your price make a fixed price.

@@ -4,11 +4,11 @@ tiles:
   - tile: nordpool
     name: Nord Pool
     entity: sensor.nordpool
-    options: { extra: 0.12, factor: 1.21, feed_in: true, feed_extra: -0.02 }
+    options: { delivery: "(p+0.12)*1.21", feed_in: "p-0.02" }
   - tile: entsoe
     name: ENTSO-e
     entity: sensor.entsoe
-    options: { unit: cents, fixed: 1, feed_in: true, feed_factor: 0, feed_plus: 0.30 }
+    options: { unit: cents, fixed: 1, feed_in: "0,30" }
 
 states:
   sensor.nordpool:
