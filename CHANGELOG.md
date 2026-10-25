@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0
+- Graph: bars or a stepped line, chosen per tile in the editor. The stepped line follows the price slot by slot in the
+  colours of the bars, with a dot for now; a feed-in price is a thin grey line under it. A tapped slot gets a line
+  down through it and a dot on each price.
+- Fill under the line (on by default): a faint fill down to zero, or to the feed-in price.
+- Grid lines (none by default): solid or dotted lines across the graph at the price labels it shows. The lines
+  that were there before were a pixel wide by mistake, so none showed.
+- The card shows the graph of the tile you open it from.
+
 ## 0.8.1
 - A tapped bar shows its feed-in price too: after its time on a tile, where it fits, and on the card in the feed-in
   line, with its time slot.

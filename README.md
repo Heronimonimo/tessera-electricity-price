@@ -38,6 +38,13 @@ With a feed-in price each bar runs from the feed-in price to the delivery price,
 over the day, also when feed-in is the higher one. The tile and the card show the feed-in price of now under the
 price. The editor's preview shows the sensor's own price: it cannot work out the formula.
 
+## Bars or a stepped line
+
+In the inspector, **Graph** chooses **Bars** or **Stepped line**. The stepped line follows the price slot by slot in
+the same colours as the bars, with a dot for now. With a feed-in price it is a thin grey line under the delivery
+price. **Fill under the line** adds a faint fill down to zero, or to the feed-in price. The card shows the graph of
+the tile you open it from. **Grid lines** draws solid or dotted lines across the graph at its price labels.
+
 ## Good to know
 
 - The graph has a bar for every quarter of an hour when the sensor has quarter prices, else for every hour. A tile

@@ -217,13 +217,26 @@ static Day day_of(const Prices &p, uint32_t epoch) {
 // clock times under them with a small mark each ----
 constexpr int MAX_TICKS = 7;   // lines across, at most
 constexpr int MAX_TIMES = 24;  // times under the graph, at most
+// The lines across the graph at its price labels: none, solid or dotted.
+enum class Grid : uint8_t { NONE, SOLID, DOTTED };
+
+static Grid grid_of(const char *option) {
+  return strcmp(option, "solid") == 0 ? Grid::SOLID : strcmp(option, "dotted") == 0 ? Grid::DOTTED : Grid::NONE;
+}
+
+constexpr int MAX_RUNS = 24;   // lines of one colour the stepped line is drawn in, at most; the last takes the rest
 
 class Chart {
  public:
   // The graph takes the rectangle x, y, w, h: its plot, the price labels left of it and the times under it.
   // `bars` is how many bars it may draw, `times` how many times it may write under the bars.
-  void create(lv_obj_t *parent, int x, int y, int w, int h, int bars, int times, bool cents) {
+  // `line` draws a stepped line in place of the bars, with the bars as a faint fill under it when `fill`.
+  void create(lv_obj_t *parent, int x, int y, int w, int h, int bars, int times, bool cents, bool line = false,
+              bool fill = true, Grid grid = Grid::NONE) {
     cents_ = cents;
+    grid_style_ = grid;
+    line_ = line;
+    fill_ = fill;
     bars_n_ = std::min(bars, MAX_SLOTS);
     times_n_ = std::min(times, MAX_TIMES);
     const bool big = ui::large();
@@ -239,7 +252,14 @@ class Chart {
     mark_y_ = ay_ + ah_ + ui::px(big ? 1 : 1);
     mark_h_ = ui::px(big ? 5 : 3);
     for (int i = 0; i < MAX_TICKS; i++) {
-      grid_[i] = hairline(parent, theme::GRID);
+      // A dotted line is a line with dashes of a dot; a solid one a block a pixel high.
+      if (grid_style_ == Grid::DOTTED) {
+        grid_[i] = step_line(parent, 1);
+        lv_obj_set_style_line_dash_width(grid_[i], std::max(1, ui::px(big ? 2 : 1)), 0);
+        lv_obj_set_style_line_dash_gap(grid_[i], std::max(2, ui::px(big ? 4 : 3)), 0);
+      } else {
+        grid_[i] = hairline(parent, theme::GRID);
+      }
       price_[i] = ui::label(parent, Font::BODY, theme::SUBTLE);
       lv_obj_set_style_text_align(price_[i], LV_TEXT_ALIGN_RIGHT, 0);
       lv_obj_add_flag(price_[i], LV_OBJ_FLAG_HIDDEN);
@@ -247,8 +267,24 @@ class Chart {
     divider_ = hairline(parent, theme::TICK);
     for (int i = 0; i < bars_n_; i++) {
       bars_[i] = ui::block(parent, theme::TRACK);
-      lv_obj_set_style_radius(bars_[i], ui::px(1), 0);
+      lv_obj_set_style_radius(bars_[i], line_ ? 0 : ui::px(1), 0);
       lv_obj_add_flag(bars_[i], LV_OBJ_FLAG_HIDDEN);
+    }
+    if (line_) {
+      // Over the fill: the feed-in price as a thin line, then the delivery price in runs of one colour, then the marks
+      // of now and of a tapped slot. The points stay in PSRAM for as long as the lines show them.
+      const int thick = std::max(2, ui::px(big ? 3 : 2));
+      feed_line_ = step_line(parent, std::max(1, thick / 2));
+      for (int i = 0; i < MAX_RUNS; i++) runs_[i] = step_line(parent, thick);
+      points_.resize(2 * bars_n_ + MAX_RUNS);
+      feed_points_.resize(2 * bars_n_ + 1);
+      mark_ = hairline(parent, theme::INK);
+      const int d = std::max(5, ui::px(big ? 9 : 7));
+      for (lv_obj_t **dot : {&now_dot_, &sel_dot_, &feed_dot_}) {
+        *dot = hairline(parent, theme::INK);
+        lv_obj_set_size(*dot, d, d);
+        lv_obj_set_style_radius(*dot, LV_RADIUS_CIRCLE, 0);
+      }
     }
     for (int i = 0; i < times_n_; i++) {
       marks_[i] = hairline(parent, theme::TICK);
@@ -327,6 +363,7 @@ class Chart {
         lv_obj_add_flag(time_[i], LV_OBJ_FLAG_HIDDEN);
       }
       lv_obj_add_flag(divider_, LV_OBJ_FLAG_HIDDEN);
+      hide_line(0);
       return;
     }
 
@@ -359,9 +396,21 @@ class Chart {
       }
       const float value = bottom + step * i;
       const int ty = ay_ + static_cast<int>(std::lround(ah_ * (top - value) / range));
-      lv_obj_clear_flag(grid_[i], LV_OBJ_FLAG_HIDDEN);
-      lv_obj_set_pos(grid_[i], ax_, std::min(ty, ay_ + ah_ - 1));
-      ui::set_fill(grid_[i], Tone::NORMAL, theme::GRID);
+      const int gy = std::min(ty, ay_ + ah_ - 1);
+      if (grid_style_ == Grid::DOTTED) {
+        grid_points_[i][0] = point(ax_, gy);
+        grid_points_[i][1] = point(ax_ + aw_, gy);
+        lv_line_set_points(grid_[i], grid_points_[i], 2);
+        lv_obj_set_style_line_color(grid_[i], ui::color(theme::TICK), 0);
+        lv_obj_clear_flag(grid_[i], LV_OBJ_FLAG_HIDDEN);
+      } else if (grid_style_ == Grid::SOLID) {
+        lv_obj_set_size(grid_[i], aw_, 1);
+        lv_obj_set_pos(grid_[i], ax_, gy);
+        ui::set_fill(grid_[i], Tone::NORMAL, theme::GRID);
+        lv_obj_clear_flag(grid_[i], LV_OBJ_FLAG_HIDDEN);
+      } else {
+        lv_obj_add_flag(grid_[i], LV_OBJ_FLAG_HIDDEN);
+      }
       lv_obj_clear_flag(price_[i], LV_OBJ_FLAG_HIDDEN);
       lv_obj_set_size(price_[i], label_w_ + 2, label_h_);
       lv_obj_set_pos(price_[i], x_, std::max(ay_ - label_h_ / 2, ty - label_h_ / 2));
@@ -372,13 +421,13 @@ class Chart {
     // The bars, from the line of zero or from the feed-in price.
     // The bars share the whole width of the plot, also when it does not divide by their number.
     const int slot = aw_ / bars;
-    const int gap = slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);
+    const int gap = line_ ? 0 : slot >= 6 ? 2 : (slot >= 3 ? 1 : 0);  // a fill is one area
     const auto edge_x = [&](int i) { return static_cast<int>(static_cast<long long>(aw_) * i / bars); };
     const auto y_of = [&](float value) { return ay_ + static_cast<int>(std::lround(ah_ * (top - value) / range)); };
     const int now_bar = now < 0 ? -1 : now / group;
     for (int i = 0; i < bars_n_; i++) {
       lv_obj_t *bar = bars_[i];
-      if (i >= bars || std::isnan(v[i])) {
+      if (i >= bars || std::isnan(v[i]) || (line_ && !fill_)) {
         lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
         continue;
       }
@@ -387,7 +436,7 @@ class Chart {
       const int len = std::max(2, low - high);
       lv_obj_set_size(bar, std::max(1, edge_x(i + 1) - edge_x(i) - gap), len);
       lv_obj_set_pos(bar, ax_ + edge_x(i), v[i] >= base_[i] ? low - len : high);
-      if (i == sel_) {
+      if (i == sel_ && !line_) {
         ui::set_fill(bar, Tone::NORMAL, theme::INK);
       } else if (i < now_bar) {
         ui::set_fill(bar, Tone::NORMAL, theme::TRACK);
@@ -397,7 +446,10 @@ class Chart {
         const float at = mx > mn ? (v[i] - mn) / (mx - mn) : 0.5f;
         ui::set_fill(bar, at < 0.34f ? Tone::GOOD : at < 0.67f ? Tone::BUSY : Tone::ALERT, theme::TRACK);
       }
+      // Under a stepped line the bars are its fill: faint, the past a little less so as its grey is light already.
+      if (line_) lv_obj_set_style_bg_opa(bar, i < now_bar ? LV_OPA_50 : LV_OPA_20, 0);
     }
+    if (line_) draw_line(p, bars, v, mn, mx, now_bar, edge_x, y_of);
 
     // The line between the days.
     if (p.tomorrow > 0) {
@@ -451,6 +503,111 @@ class Chart {
   }
 
  private:
+  // A line of `width` pixels that takes no taps: the tile's and the card's on_tap find the bar.
+  static lv_obj_t *step_line(lv_obj_t *parent, int width) {
+    lv_obj_t *line = lv_line_create(parent);
+    lv_obj_remove_flag(line, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_pos(line, 0, 0);
+    lv_obj_set_style_line_width(line, width, 0);
+    lv_obj_add_flag(line, LV_OBJ_FLAG_HIDDEN);
+    return line;
+  }
+
+  static lv_point_precise_t point(int x, int y) {
+    lv_point_precise_t q;
+    q.x = x;
+    q.y = y;
+    return q;
+  }
+
+  // The stepped line's runs from `first` on and its marks out of sight; 0 hides all of it.
+  void hide_line(int first) {
+    if (!line_) return;
+    for (int i = first; i < MAX_RUNS; i++) lv_obj_add_flag(runs_[i], LV_OBJ_FLAG_HIDDEN);
+    if (first == 0) {
+      lv_obj_add_flag(feed_line_, LV_OBJ_FLAG_HIDDEN);
+      for (lv_obj_t *part : {mark_, now_dot_, sel_dot_, feed_dot_}) lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  // A dot of the line centred on x, y.
+  static void put_dot(lv_obj_t *dot, int x, int y, lv_color_t color) {
+    lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_pos(dot, x - lv_obj_get_width(dot) / 2, y - lv_obj_get_height(dot) / 2);
+    lv_obj_set_style_bg_color(dot, color, 0);
+  }
+
+  // The stepped line: each bar's price a flat step across its slot, and a rise or drop to the next. The delivery
+  // price is drawn in runs of one colour, as the bars are coloured: the past grey, now the accent, then green, amber or
+  // red by its place in the range. The feed-in price, when there is one, is one thin line under it. A gap in the prices
+  // breaks the line.
+  template <class EdgeX, class YOf>
+  void draw_line(const Prices &p, int bars, const float *v, float mn, float mx, int now_bar, EdgeX edge_x, YOf y_of) {
+    const auto colour = [&](int i) {
+      if (i < now_bar) return 0;
+      if (i == now_bar) return 1;
+      const float at = mx > mn ? (v[i] - mn) / (mx - mn) : 0.5f;
+      return at < 0.34f ? 2 : at < 0.67f ? 3 : 4;
+    };
+    const auto color_of = [](int c) {
+      switch (c) {
+        case 0: return ui::color(theme::SUBTLE);
+        case 1: return ui::color(theme::ACCENT);
+        default: return ui::tone_color(c == 2 ? Tone::GOOD : c == 3 ? Tone::BUSY : Tone::ALERT, theme::TRACK);
+      }
+    };
+    int run = 0, k = 0, i = 0;
+    while (i < bars && run < MAX_RUNS) {
+      if (std::isnan(v[i])) {
+        i++;
+        continue;
+      }
+      const int first = k, c = colour(i);
+      points_[k++] = point(ax_ + edge_x(i), y_of(v[i]));
+      int j = i;
+      for (; j < bars && !std::isnan(v[j]) && (colour(j) == c || run == MAX_RUNS - 1); j++) {
+        points_[k++] = point(ax_ + edge_x(j + 1), y_of(v[j]));
+        if (j + 1 < bars && !std::isnan(v[j + 1])) points_[k++] = point(ax_ + edge_x(j + 1), y_of(v[j + 1]));
+      }
+      lv_line_set_points(runs_[run], points_.data() + first, k - first);
+      lv_obj_set_style_line_color(runs_[run], color_of(c), 0);
+      lv_obj_clear_flag(runs_[run], LV_OBJ_FLAG_HIDDEN);
+      run++;
+      i = j;
+    }
+    hide_line(run);
+    if (p.has_feed) {
+      int n = 0;
+      for (int b = 0; b < bars; b++) {
+        if (std::isnan(v[b])) continue;
+        feed_points_[n++] = point(ax_ + edge_x(b), y_of(base_[b]));
+        feed_points_[n++] = point(ax_ + edge_x(b + 1), y_of(base_[b]));
+      }
+      lv_line_set_points(feed_line_, feed_points_.data(), n);
+      lv_obj_set_style_line_color(feed_line_, ui::color(theme::MUTED), 0);
+      lv_obj_clear_flag(feed_line_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(feed_line_, LV_OBJ_FLAG_HIDDEN);
+    }
+    const auto middle = [&](int b) { return ax_ + (edge_x(b) + edge_x(b + 1)) / 2; };
+    if (now_bar >= 0 && now_bar < bars && !std::isnan(v[now_bar]) && now_bar != sel_)
+      put_dot(now_dot_, middle(now_bar), y_of(v[now_bar]), ui::color(theme::ACCENT));
+    else
+      lv_obj_add_flag(now_dot_, LV_OBJ_FLAG_HIDDEN);
+    // A tapped slot: a line down through it, and a dot on each price.
+    if (sel_ >= 0 && sel_ < bars && !std::isnan(v[sel_])) {
+      lv_obj_clear_flag(mark_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_set_size(mark_, 1, ah_);
+      lv_obj_set_pos(mark_, middle(sel_), ay_);
+      ui::set_fill(mark_, Tone::NORMAL, theme::INK);
+      put_dot(sel_dot_, middle(sel_), y_of(v[sel_]), ui::color(theme::INK));
+      if (p.has_feed) put_dot(feed_dot_, middle(sel_), y_of(base_[sel_]), ui::color(theme::MUTED));
+      else lv_obj_add_flag(feed_dot_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      for (lv_obj_t *part : {mark_, sel_dot_, feed_dot_}) lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
   static lv_obj_t *hairline(lv_obj_t *parent, theme::Role role) {
     lv_obj_t *line = ui::block(parent, role);
     lv_obj_set_style_radius(line, 0, 0);
@@ -461,6 +618,12 @@ class Chart {
 
   lv_obj_t *bars_[MAX_SLOTS]{}, *grid_[MAX_TICKS]{}, *price_[MAX_TICKS]{}, *marks_[MAX_TIMES]{}, *time_[MAX_TIMES]{};
   lv_obj_t *divider_{};
+  // The stepped line: its runs, the feed-in line, the mark through a tapped slot and the dots, and their points.
+  lv_obj_t *runs_[MAX_RUNS]{}, *feed_line_{}, *mark_{}, *now_dot_{}, *sel_dot_{}, *feed_dot_{};
+  tessera::List<lv_point_precise_t> points_, feed_points_;
+  bool line_ = false, fill_ = true;
+  Grid grid_style_ = Grid::NONE;
+  lv_point_precise_t grid_points_[MAX_TICKS][2]{};
   bool cents_ = false;
   int x_ = 0, ax_ = 0, ay_ = 0, aw_ = 1, ah_ = 1, label_w_ = 0, label_h_ = 0, time_y_ = 0, mark_y_ = 0, mark_h_ = 0;
   int bars_n_ = 0, times_n_ = 0, mid_x_ = 0;
@@ -471,6 +634,8 @@ class Chart {
 // What a card takes over from the tile that opened it: the tile's options and its last prices.
 struct Shared {
   bool cents = false;
+  bool line = false, fill = true;  // the graph: a stepped line in place of bars, with a fill under it
+  Grid grid = Grid::NONE;
   int decimals = 3;
   Tariff tariff;
   Prices prices;
@@ -488,6 +653,9 @@ class PriceTile : public tessera::Tile {
     cents_ = strcmp(c.options["unit"] | "eur", "cents") == 0;
     decimals_ = std::min<int>(static_cast<int>(std::lround(c.options["fixed"] | 3.0f)), cents_ ? 1 : 4);  // 3 or 3.0
     tariff_ = tariff_of(c.options);
+    line_ = strcmp(c.options["graph"] | "bars", "line") == 0;
+    fill_ = c.options["fill"] | true;
+    grid_ = grid_of(c.options["grid"] | "none");
     head_ = ui::line_height(Font::HEADLINE);
     const int gap = ui::px(6);
     const int axis = ui::line_height(Font::BODY) + ui::px(ui::large() ? 8 : 4);
@@ -499,7 +667,7 @@ class PriceTile : public tessera::Tile {
     feed_ = ui::label(c.parent, Font::BODY, theme::MUTED);
     lv_obj_set_style_text_align(feed_, LV_TEXT_ALIGN_RIGHT, 0);
     if (chart_on_) {
-      chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, 12, cents_);
+      chart_.create(c.parent, 0, head_ + gap, width_, height_ - head_ - gap, TILE_BARS, 12, cents_, line_, fill_, grid_);
       return;
     }
     // The meter's bar of cells (Tessera's sensor meter): narrow cells along the bottom of the tile, lit up to where
@@ -610,6 +778,9 @@ class PriceTile : public tessera::Tile {
     shared_->cents = cents_;
     shared_->decimals = decimals_;
     shared_->tariff = tariff_;
+    shared_->line = line_;
+    shared_->fill = fill_;
+    shared_->grid = grid_;
     shared_->prices = prices_;
     tessera::open_card(plugin_->plugin_id(), "prices", entity_, tile_);
   }
@@ -675,7 +846,8 @@ class PriceTile : public tessera::Tile {
   Prices prices_;
   Chart chart_;
   Tariff tariff_;
-  bool cents_ = false, chart_on_ = false;
+  bool cents_ = false, chart_on_ = false, line_ = false, fill_ = true;
+  Grid grid_ = Grid::NONE;
   int decimals_ = 3, width_ = 0, height_ = 0, head_ = 0, tile_ = -1;
   int cells_n_ = 0, cells_h_ = 0, cell_gap_ = 1;
   uint32_t last_epoch_ = 0;
@@ -741,7 +913,7 @@ class PriceCard : public tessera::Card {
     lv_obj_set_pos(today_, edge, top);
     const int plot_y = top + days_h + ui::px(big ? 8 : 4);
     chart_.create(c.parent, edge, plot_y, width_ - 2 * edge, y + card_h - ui::px(big ? 10 : 6) - plot_y, MAX_SLOTS, MAX_TIMES,
-                  cents_);
+                  cents_, shared_->line, shared_->fill, shared_->grid);
     on_tick(0);
   }
 

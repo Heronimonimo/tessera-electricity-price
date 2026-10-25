@@ -1,14 +1,22 @@
-# What tools/preview.py shows: a Nord Pool sensor with quarters of today and tomorrow, with a Dutch tariff and a
-# feed-in price, and an ENTSO-e sensor with the hours of today and a fixed feed-in price that is at times above it.
+# What tools/preview.py shows: a Nord Pool sensor with quarters of today and tomorrow, a Dutch tariff and a feed-in
+# price, as a stepped line and as bars; and an ENTSO-e sensor with the hours of today and a fixed feed-in price that is
+# at times above the delivery price, as a stepped line without fill.
 tiles:
+  - tile: nordpool
+    name: Stepped
+    entity: sensor.nordpool
+    options: { delivery: "(p+0.12)*1.21", feed_in: "p-0.02", graph: line, grid: dotted }
+    sizes: [2x2, 4x2, 4x3]
   - tile: nordpool
     name: Nord Pool
     entity: sensor.nordpool
-    options: { delivery: "(p+0.12)*1.21", feed_in: "p-0.02" }
+    options: { delivery: "(p+0.12)*1.21", feed_in: "p-0.02", grid: solid }
+    sizes: [1x1, 2x1, 2x2, 4x2]
   - tile: entsoe
     name: ENTSO-e
     entity: sensor.entsoe
-    options: { unit: cents, fixed: 1, feed_in: "0,30" }
+    options: { unit: cents, fixed: 1, feed_in: "0,30", graph: line, fill: false }
+    sizes: [1x1, 2x2, 3x2]
 
 states:
   sensor.nordpool:

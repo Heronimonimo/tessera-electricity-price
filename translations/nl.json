@@ -30,6 +30,17 @@
     "feed_in": "Terugleverprijs",
     "feed_in_hint": "Een formule met p voor wat een kWh die je teruglevert oplevert, zoals p-0,02, of een vaste prijs zoals 0,07. Elke balk loopt dan van de terugleverprijs tot de leveringsprijs. Leeg: geen terugleverprijs.",
     "delivery": "Leveringsprijs",
-    "delivery_hint": "Een formule met p, de prijs van de sensor per kWh in zijn eigen munt (ook als je centen toont): (p+0,12)*1,21 telt energiebelasting en opslag op en dan 21% btw. Alleen een getal is een vaste prijs. Leeg: de prijs van de sensor."
+    "delivery_hint": "Een formule met p, de prijs van de sensor per kWh in zijn eigen munt (ook als je centen toont): (p+0,12)*1,21 telt energiebelasting en opslag op en dan 21% btw. Alleen een getal is een vaste prijs. Leeg: de prijs van de sensor.",
+    "graph": "Grafiek",
+    "graph_hint": "Balken, of een trappenlijn die de prijs per tijdvak volgt. De kaart toont de grafiek van de tegel waarmee je hem opent.",
+    "graph_bars": "Balken",
+    "graph_line": "Trappenlijn",
+    "fill": "Vulling onder de lijn",
+    "fill_hint": "Bij een trappenlijn: een lichte vulling eronder, tot nul of tot de terugleverprijs.",
+    "grid": "Rasterlijnen",
+    "grid_hint": "Lijnen dwars door de grafiek bij de prijzen die hij toont.",
+    "grid_none": "Geen",
+    "grid_solid": "Doorgetrokken",
+    "grid_dotted": "Gestippeld"
   }
 }

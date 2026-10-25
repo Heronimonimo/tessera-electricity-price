@@ -30,6 +30,17 @@
     "feed_in": "Feed-in price",
     "feed_in_hint": "A formula in p for what a kWh you feed back brings, such as p-0.02, or a fixed price such as 0.07. Each bar then runs from the feed-in price to the delivery price. Empty: no feed-in price.",
     "delivery": "Delivery price",
-    "delivery_hint": "A formula in p, the sensor's price per kWh in its own currency (also when you show cents): (p+0.12)*1.21 adds the energy tax and surcharge, then 21% VAT. A number alone is a fixed price. Empty: the sensor's price."
+    "delivery_hint": "A formula in p, the sensor's price per kWh in its own currency (also when you show cents): (p+0.12)*1.21 adds the energy tax and surcharge, then 21% VAT. A number alone is a fixed price. Empty: the sensor's price.",
+    "graph": "Graph",
+    "graph_hint": "Bars, or a stepped line that follows the price slot by slot. The card shows the graph of the tile you open it from.",
+    "graph_bars": "Bars",
+    "graph_line": "Stepped line",
+    "fill": "Fill under the line",
+    "fill_hint": "With a stepped line: a faint fill under it, down to zero or to the feed-in price.",
+    "grid": "Grid lines",
+    "grid_hint": "Lines across the graph at the price labels it shows.",
+    "grid_none": "None",
+    "grid_solid": "Solid",
+    "grid_dotted": "Dotted"
   }
 }
