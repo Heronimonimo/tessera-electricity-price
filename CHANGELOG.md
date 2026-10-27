@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0
+- The price now in the top bar: place **Electricity price** on a page's top bar in the editor, under "From plugins".
+  It reads the price sensor chosen when the plugin is added (Price sensor for the top bar), through a formula of its
+  own and in EUR/kWh or ct/kWh: two settings in the plugin's details on the screen's Plugins tab, which change
+  without a build. A formula with a typo says "Check the formula".
+- The price of now comes from today's list at the current time slot, the same as the bar of now. The ENTSO-e tile
+  showed the day's average as the price of now: ENTSO-e keeps its lists only on its average-price sensor, whose
+  state is that average (issue #2). Without a list or a set clock, the sensor's state stays the price.
+
 ## 0.9.0
 - Graph: bars or a stepped line, chosen per tile in the editor. The stepped line follows the price slot by slot in the
   colours of the bars, with a dot for now; a feed-in price is a thin grey line under it. A tapped slot gets a line

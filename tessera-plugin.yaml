@@ -1,7 +1,9 @@
 # Electricity price: the price of power now as a tile, and the graph of today and tomorrow on bigger tiles and on a
-# card, with the person's own tariff on top: a formula in p for delivery and, optionally, one for feed-in. It reads the sensor of Nord Pool (HACS `nordpool`), ENTSO-e (`entsoe`) or GE-Spot (`ge_spot`) from Home Assistant.
+# card, with the person's own tariff on top: a formula in p for delivery and, optionally, one for feed-in. It reads the
+# sensor of Nord Pool (HACS `nordpool`), ENTSO-e (`entsoe`) or GE-Spot (`ge_spot`) from Home Assistant. The price now
+# can also stand in the top bar.
 id: electricity_price
-version: 0.9.0
+version: 0.10.0
 api: "0.12"
 icon: flash
 maintainer: Heronimonimo
@@ -11,7 +13,22 @@ topics: [energy]
 requires:
   esphome: 2026.6.2
 boards: any
-flash_kb: 10
+flash_kb: 16
+
+permissions:
+  # The top bar's item reads the price sensor chosen when the plugin was added.
+  read_entities: ["{price_sensor}"]
+
+inputs:
+  - { id: price_sensor, kind: entity, domains: [sensor], scope: screen, label: input_price_sensor, hint: input_price_sensor_hint }
+
+bar_items:
+  - { id: price, label: bar_price, icon: flash, example: bar_example }
+
+# The top bar item's two settings of plugin.yaml, also in the plugin's details on the screen's Plugins tab.
+settings:
+  - { key: price_bar_formula, label: setting_bar_formula, hint: setting_bar_formula_hint }
+  - { key: price_bar_unit, label: setting_bar_unit, hint: setting_bar_unit_hint }
 
 tiles:
   # One tile per integration: has_attributes keeps the inspector's list to the sensors that belong to it.

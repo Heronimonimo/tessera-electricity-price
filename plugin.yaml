@@ -1,3 +1,51 @@
 # What a screen gets when it takes this plugin: the component, configured. Tessera includes this file from the screen's
-# <name>.plugins.yaml and adds this plugin's components/ folder as an ESPHome external component.
+# <name>.plugins.yaml with PRICE_SENSOR filled in (the input chosen when the plugin was added), and adds this plugin's
+# components/ folder as an ESPHome external component.
+defaults:
+  PRICE_SENSOR: sensor.nordpool
+
+# The price the top bar's item shows, straight from Home Assistant: the sensor's state and its unit.
+sensor:
+  - platform: homeassistant
+    id: electricity_price_now
+    entity_id: ${PRICE_SENSOR}
+    internal: true
+
+text_sensor:
+  - platform: homeassistant
+    id: electricity_price_unit
+    entity_id: ${PRICE_SENSOR}
+    attribute: unit_of_measurement
+    internal: true
+
+# The top bar item's two settings, kept on the screen and shown in Home Assistant and in the editor: the formula in p,
+# as on a tile, and the unit.
+text:
+  - platform: template
+    id: electricity_price_bar_formula
+    name: "Price bar formula"
+    icon: mdi:function-variant
+    optimistic: true
+    mode: text
+    min_length: 0
+    max_length: 64
+    initial_value: ""
+    restore_value: true
+    entity_category: config
+
+select:
+  - platform: template
+    id: electricity_price_bar_unit
+    name: "Price bar unit"
+    icon: mdi:currency-eur
+    optimistic: true
+    options: ["EUR/kWh", "ct/kWh"]
+    initial_option: "EUR/kWh"
+    restore_value: true
+    entity_category: config
+
 electricity_price:
+  price: electricity_price_now
+  unit: electricity_price_unit
+  bar_formula: electricity_price_bar_formula
+  bar_unit: electricity_price_bar_unit

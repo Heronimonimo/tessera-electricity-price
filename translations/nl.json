@@ -41,6 +41,14 @@
     "grid_hint": "Lijnen dwars door de grafiek bij de prijzen die hij toont.",
     "grid_none": "Geen",
     "grid_solid": "Doorgetrokken",
-    "grid_dotted": "Gestippeld"
+    "grid_dotted": "Gestippeld",
+    "input_price_sensor": "Prijssensor voor de bovenbalk",
+    "input_price_sensor_hint": "De sensor van de prijs nu, voor de bovenbalk. Nord Pool: dezelfde sensor als je tegels. ENTSO-e: zijn sensor voor de huidige marktprijs, niet de gemiddelde die je tegels gebruiken.",
+    "bar_price": "Stroomprijs",
+    "bar_example": "0,472 €/kWh",
+    "setting_bar_formula": "Bovenbalk: prijsformule",
+    "setting_bar_formula_hint": "Net als op een tegel: een formule met p, zoals (p+0,12)*1,21, of een getal voor een vaste prijs. Leeg: de prijs van de sensor.",
+    "setting_bar_unit": "Bovenbalk: eenheid",
+    "setting_bar_unit_hint": "EUR/kWh (0,472) of ct/kWh (47,2)."
   }
 }

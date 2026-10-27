@@ -24,8 +24,10 @@ struct Prices {
   float feed[MAX_SLOTS] = {};  // the feed-in price, when the tariff has one
   int today = 0;     // today's slots: 24 hours or 96 quarters, 23/25 or 92/100 on the days the clock changes; 0: no graph
   int tomorrow = 0;  // tomorrow's, in today's resolution, after today's; 0 until the sensor has them
-  float current = 0, feed_current = 0;
+  float current = 0, feed_current = 0;  // the price of now: today's list at now, else the sensor's state
   bool has_current = false;
+  float state_current = 0, state_feed = 0;  // the sensor's state through the tariff
+  bool state_ok = false;
   bool has_feed = false;  // the tariff has a feed-in price: `feed` and `feed_current` hold it
   bool chosen = false;  // the tile has a sensor
   char unit[16] = "";
@@ -99,7 +101,7 @@ static Tariff tariff_of(JsonObjectConst options) {
 
 static void read_prices(JsonObjectConst data, bool cents, const Tariff &tariff, Prices &p) {
   p.today = p.tomorrow = 0;
-  p.has_current = p.has_feed = false;
+  p.has_current = p.has_feed = p.state_ok = false;
   p.chosen = !data["state"].isNull();
   if (!p.chosen || tariff.error) return;
   // A price per MWh is made one per kWh, so the units, the decimals and the graph's labels read as for a sensor per kWh.
@@ -116,9 +118,9 @@ static void read_prices(JsonObjectConst data, bool cents, const Tariff &tariff, 
   char *end = nullptr;
   const float v = strtof(state, &end);
   if (end != state && *end == 0) {
-    p.current = tariff.delivery(v * scale) * shown;
-    p.feed_current = tariff.feed_in(v * scale) * shown;
-    p.has_current = true;
+    p.state_current = p.current = tariff.delivery(v * scale) * shown;
+    p.state_feed = p.feed_current = tariff.feed_in(v * scale) * shown;
+    p.state_ok = p.has_current = true;
     p.has_feed = tariff.feed;
   }
   JsonObjectConst a = data["attributes"];
@@ -154,8 +156,7 @@ static std::string number(float v, int decimals) {
 }
 
 // "EUR/kWh" as "€/kWh", or "ct/kWh" when the prices are in cents.
-static std::string unit_text(const Prices &p, bool cents) {
-  std::string unit = p.unit;
+static std::string unit_text(const std::string &unit, bool cents) {
   const size_t slash = unit.find('/');
   const std::string per = slash == std::string::npos ? "kWh" : unit.substr(slash + 1);
   std::string money = slash == std::string::npos ? unit : unit.substr(0, slash);
@@ -168,6 +169,8 @@ static std::string unit_text(const Prices &p, bool cents) {
   }
   return money.empty() ? per : money + "/" + per;
 }
+
+static std::string unit_text(const Prices &p, bool cents) { return unit_text(std::string(p.unit), cents); }
 
 // The moment the day of `epoch` began on the screen's clock: its midnight, also on a day the clock changes, when the
 // time of day is an hour off the time since midnight.
@@ -201,6 +204,24 @@ struct Day {
     return today + static_cast<int>((epoch - next) / next_step);
   }
 };
+
+static Day day_of(const Prices &p, uint32_t epoch);
+
+// The price of now: today's or tomorrow's slot of the moment `epoch` where the clock is set and the list has it, else
+// the sensor's state. The state is not always the price of now: ENTSO-e keeps its lists on the sensor of the day's
+// average, whose state is that average. The list is also what the bar of now shows, so the two agree.
+static void price_now(Prices &p, uint32_t epoch) {
+  const int s = day_of(p, epoch).slot(epoch);
+  if (s >= 0 && s < p.count() && !std::isnan(p.slot[s])) {
+    p.current = p.slot[s];
+    p.feed_current = p.feed[s];
+    p.has_current = true;
+  } else {
+    p.current = p.state_current;
+    p.feed_current = p.state_feed;
+    p.has_current = p.state_ok;
+  }
+}
 
 static Day day_of(const Prices &p, uint32_t epoch) {
   Day d;
@@ -689,6 +710,7 @@ class PriceTile : public tessera::Tile {
   void on_state(JsonObjectConst data) override { read_prices(data, cents_, tariff_, prices_); }
 
   void on_tick(uint32_t epoch) override {
+    price_now(prices_, epoch);
     std::string big, small;
     if (!prices_.chosen) {
       big = plugin_->text("choose");
@@ -924,6 +946,7 @@ class PriceCard : public tessera::Card {
 
   void on_tick(uint32_t epoch) override {
     last_epoch_ = epoch;
+    price_now(prices_, epoch);
     const bool ok = prices_.chosen && prices_.has_current;
     const int gap = ui::px(8);
     // A tapped bar shows its own price and time slot for a few seconds, then the card is as it was.
@@ -1079,6 +1102,37 @@ void ElectricityPrice::setup() {
   add_tile("entsoe", [this]() { return new PriceTile(this, shared_); });
   add_tile("gespot", [this]() { return new PriceTile(this, shared_); });
   add_card("prices", [this]() { return new PriceCard(this, shared_); }, true);
+  add_bar_item("price", [this]() { return bar(); });
+}
+
+// The price now in the top bar: the state of the sensor chosen when the plugin was added, through the formula and in
+// the unit of the two settings. Nothing shows until the sensor has a price; a formula with a typo says so.
+tessera::BarItem ElectricityPrice::bar() {
+  tessera::BarItem item;
+  if (!price_ || std::isnan(price_->state)) return item;
+  const std::string typed = bar_formula_ ? bar_formula_->state : std::string();
+  if (typed != formula_text_) {
+    formula_text_ = typed;
+    formula_ok_ = formula_.parse(typed.c_str());
+  }
+  item.shown = true;
+  item.icon = 0xF0241;  // flash
+  if (!formula_ok_) {
+    item.text = text("formula_error");
+    return item;
+  }
+  // A price per MWh is made one per kWh first, as on the tiles, so the formula always takes a price per kWh.
+  std::string unit = unit_ ? unit_->state : std::string();
+  float p = price_->state;
+  const size_t slash = unit.find('/');
+  if (slash != std::string::npos && unit.compare(slash + 1, std::string::npos, "MWh") == 0) {
+    p /= 1000.0f;
+    unit = unit.substr(0, slash) + "/kWh";
+  }
+  const auto chosen = bar_unit_ ? bar_unit_->active_index() : optional<size_t>{};
+  const bool cents = chosen.has_value() && *chosen == 1;
+  item.text = number(formula_(p) * (cents ? 100.0f : 1.0f), cents ? 1 : 3) + " " + unit_text(unit, cents);
+  return item;
 }
 
 }  // namespace esphome::electricity_price
