@@ -42,13 +42,7 @@
     "grid_none": "None",
     "grid_solid": "Solid",
     "grid_dotted": "Dotted",
-    "input_price_sensor": "Price sensor for the top bar",
-    "input_price_sensor_hint": "The sensor of the price now, for the top bar item. Nord Pool: the same sensor as your tiles. ENTSO-e: its Current electricity market price sensor, not the average one your tiles use.",
     "bar_price": "Electricity price",
-    "bar_example": "0.472 €/kWh",
-    "setting_bar_formula": "Top bar: price formula",
-    "setting_bar_formula_hint": "As on a tile: a formula in p, such as (p+0.12)*1.21, or a number for a fixed price. Empty: the sensor's price.",
-    "setting_bar_unit": "Top bar: unit",
-    "setting_bar_unit_hint": "EUR/kWh (0.472) or ct/kWh (47.2)."
+    "bar_example": "0.472 €/kWh"
   }
 }

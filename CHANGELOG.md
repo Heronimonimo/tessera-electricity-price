@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0
+- The top bar shows the price as your tiles do: the sensor, formula, unit and decimals of a price tile on the screen,
+  and the price of the current time slot. The first tile with a sensor gives it. Its own sensor and its two settings
+  (Price sensor for the top bar, Top bar: price formula, Top bar: unit) are gone, and so is the permission to read
+  that sensor. A screen without a price tile shows no price in the top bar.
+
 ## 0.10.0
 - The price now in the top bar: place **Electricity price** on a page's top bar in the editor, under "From plugins".
   It reads the price sensor chosen when the plugin is added (Price sensor for the top bar), through a formula of its

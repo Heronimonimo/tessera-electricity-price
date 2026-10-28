@@ -662,9 +662,23 @@ struct Shared {
   Prices prices;
 };
 
+// What the top bar shows: the prices of one tile on the screen, with its formula, unit and decimals. The first tile
+// that has a sensor gives them, and keeps giving them while it lives; the prices stay when it goes (the CYD makes a
+// new tile when its page comes back), until the next tile gives its own.
+struct BarSource {
+  const void *tile = nullptr;  // the tile that gives them; nullptr: none now
+  bool set = false;            // a tile gave prices
+  bool cents = false, error = false;
+  int decimals = 3;
+  Prices prices;
+};
+
 class PriceTile : public tessera::Tile {
  public:
-  PriceTile(const tessera::Plugin *plugin, Shared *shared) : plugin_(plugin), shared_(shared) {}
+  PriceTile(const tessera::Plugin *plugin, Shared *shared, BarSource *bar) : plugin_(plugin), shared_(shared), bar_(bar) {}
+  ~PriceTile() override {
+    if (bar_->tile == this) bar_->tile = nullptr;
+  }
 
   void create(const tessera::TileContext &c) override {
     width_ = c.width;
@@ -707,7 +721,17 @@ class PriceTile : public tessera::Tile {
     }
   }
 
-  void on_state(JsonObjectConst data) override { read_prices(data, cents_, tariff_, prices_); }
+  void on_state(JsonObjectConst data) override {
+    read_prices(data, cents_, tariff_, prices_);
+    if (prices_.chosen && (bar_->tile == nullptr || bar_->tile == this)) {
+      bar_->tile = this;
+      bar_->set = true;
+      bar_->cents = cents_;
+      bar_->error = tariff_.error;
+      bar_->decimals = decimals_;
+      bar_->prices = prices_;
+    }
+  }
 
   void on_tick(uint32_t epoch) override {
     price_now(prices_, epoch);
@@ -862,6 +886,7 @@ class PriceTile : public tessera::Tile {
 
   const tessera::Plugin *plugin_;
   Shared *shared_;
+  BarSource *bar_;
   int sel_ = -1;
   uint32_t sel_until_ = 0;
   std::string entity_, name_text_;
@@ -1097,41 +1122,32 @@ class PriceCard : public tessera::Card {
 
 void ElectricityPrice::setup() {
   shared_ = new Shared();
-  // Two tiles for the two integrations: the inspector lists only sensors that have the attributes of that one.
-  add_tile("nordpool", [this]() { return new PriceTile(this, shared_); });
-  add_tile("entsoe", [this]() { return new PriceTile(this, shared_); });
-  add_tile("gespot", [this]() { return new PriceTile(this, shared_); });
+  bar_ = new BarSource();
+  // A tile per integration: the inspector lists only sensors that have the attributes of that one.
+  add_tile("nordpool", [this]() { return new PriceTile(this, shared_, bar_); });
+  add_tile("entsoe", [this]() { return new PriceTile(this, shared_, bar_); });
+  add_tile("gespot", [this]() { return new PriceTile(this, shared_, bar_); });
   add_card("prices", [this]() { return new PriceCard(this, shared_); }, true);
   add_bar_item("price", [this]() { return bar(); });
 }
 
-// The price now in the top bar: the state of the sensor chosen when the plugin was added, through the formula and in
-// the unit of the two settings. Nothing shows until the sensor has a price; a formula with a typo says so.
+// The price now in the top bar, as a tile shows it: the prices of the tile that gives them (BarSource), its formula,
+// unit and decimals, at the slot of now. Nothing shows until a tile has a price; a formula with a typo says so.
 tessera::BarItem ElectricityPrice::bar() {
   tessera::BarItem item;
-  if (!price_ || std::isnan(price_->state)) return item;
-  const std::string typed = bar_formula_ ? bar_formula_->state : std::string();
-  if (typed != formula_text_) {
-    formula_text_ = typed;
-    formula_ok_ = formula_.parse(typed.c_str());
-  }
-  item.shown = true;
-  item.icon = 0xF0241;  // flash
-  if (!formula_ok_) {
+  if (!bar_->set) return item;
+  if (bar_->error) {
+    item.shown = true;
+    item.icon = 0xF0241;  // flash
     item.text = text("formula_error");
     return item;
   }
-  // A price per MWh is made one per kWh first, as on the tiles, so the formula always takes a price per kWh.
-  std::string unit = unit_ ? unit_->state : std::string();
-  float p = price_->state;
-  const size_t slash = unit.find('/');
-  if (slash != std::string::npos && unit.compare(slash + 1, std::string::npos, "MWh") == 0) {
-    p /= 1000.0f;
-    unit = unit.substr(0, slash) + "/kWh";
-  }
-  const auto chosen = bar_unit_ ? bar_unit_->active_index() : optional<size_t>{};
-  const bool cents = chosen.has_value() && *chosen == 1;
-  item.text = number(formula_(p) * (cents ? 100.0f : 1.0f), cents ? 1 : 3) + " " + unit_text(unit, cents);
+  Prices &p = bar_->prices;
+  price_now(p, tessera::epoch());
+  if (!p.has_current) return item;
+  item.shown = true;
+  item.icon = 0xF0241;
+  item.text = number(p.current, bar_->decimals) + " " + unit_text(p, bar_->cents);
   return item;
 }
 

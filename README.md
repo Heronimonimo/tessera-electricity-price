@@ -47,11 +47,9 @@ the tile you open it from. **Grid lines** draws solid or dotted lines across the
 
 ## The price in the top bar
 
-Place **Electricity price** on a page's top bar in the editor, under "From plugins". It shows the price now, from the
-sensor you chose as **Price sensor for the top bar** when you added the plugin (change it in the plugin's details on
-the screen's Plugins tab, under "When building"). Two settings there, under "On this screen", change it without a
-build: **Top bar: price formula**, as on a tile (`(p+0.12)*1.21`; empty is the sensor's price), and **Top bar: unit**,
-EUR/kWh or ct/kWh. Both are also entities of the screen in Home Assistant.
+Place **Electricity price** on a page's top bar in the editor, under "From plugins". It shows the price now exactly
+as your price tile does: the same sensor, formula, unit and decimals. With more than one price tile on the screen, the
+first one with a sensor gives it. The top bar needs a price tile on the screen, on any page.
 
 ## Good to know
 
@@ -61,7 +59,7 @@ EUR/kWh or ct/kWh. Both are also entities of the screen in Home Assistant.
   place between the lowest and highest price. Prices below zero hang under the zero line.
 - Tomorrow's bars appear on their own as soon as the sensor has them (the day-ahead prices come in the afternoon).
 - The price of now is the current time slot of today's list, as the bar of now shows it, not the sensor's state.
-  For ENTSO-e, choose its average-price sensor for a tile: it is the one with the lists (the tile still shows the
-  price of now). For the top bar, which reads a state, choose its current-price sensor.
+  For ENTSO-e, choose its average-price sensor for a tile: it is the one with the lists (the tile and the top bar
+  still show the price of now).
 - The unit comes from the sensor (`EUR/kWh` shows as `€/kWh`). A sensor that reports per MWh is shown per kWh.
 - On the days the clock changes, the graph has 23 or 25 hours, each where it is on the clock.
