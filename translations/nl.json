@@ -15,7 +15,7 @@
   },
   "app": {
     "name": "Stroomprijs",
-    "summary": "De stroomprijs nu, met een grafiek van vandaag en morgen, van een Nord Pool-, ENTSO-e- of GE-Spot-sensor.",
+    "summary": "De stroomprijs nu, met een grafiek van vandaag en morgen, van een Nord Pool-, ENTSO-e-, GE-Spot- of EPEX Spot-sensor.",
     "tile_name_nordpool": "Stroomprijs (Nord Pool)",
     "tile_name_entsoe": "Stroomprijs (ENTSO-e)",
     "tile_name_gespot": "Stroomprijs (GE-Spot)",
@@ -43,6 +43,9 @@
     "grid_solid": "Doorgetrokken",
     "grid_dotted": "Gestippeld",
     "bar_price": "Stroomprijs",
-    "bar_example": "0,472 €/kWh"
+    "bar_example": "0,472 €/kWh",
+    "tile_name_epex": "Stroomprijs (EPEX Spot)",
+    "ahead": "Alleen de komende 24 uur",
+    "ahead_hint": "De grafiek toont de 24 uur vanaf nu in plaats van vandaag en morgen. Zolang de prijzen van morgen er nog niet zijn, stopt hij om middernacht."
   }
 }

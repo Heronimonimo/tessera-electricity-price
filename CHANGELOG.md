@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0
+- EPEX Spot: a fourth tile, **Electricity price (EPEX Spot)**, for the sensor of the HACS `epex_spot` integration. Its
+  one list of yesterday, today and tomorrow is cut into today and tomorrow by the start of its slots. From
+  Nekromonger's [tessera-strompreis](https://github.com/Nekromonger/tessera-strompreis).
+- **Next 24 hours only**, on every tile: the graph shows the 24 hours from the slot of now instead of today and
+  tomorrow, up to midnight while tomorrow's prices are not in yet. The meter's range and the card's average, lowest
+  and highest are of those 24 hours too. The card follows the tile.
+- German, from Nekromonger's translation.
+
 ## 0.11.0
 - The top bar shows the price as your tiles do: the sensor, formula, unit and decimals of a price tile on the screen,
   and the price of the current time slot. The first tile with a sensor gives it. Its own sensor and its two settings

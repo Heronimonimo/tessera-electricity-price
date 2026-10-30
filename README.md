@@ -1,7 +1,7 @@
 # Electricity price
 
 The electricity price now as a tile, with the graph of today and tomorrow on bigger tiles and on a card of its own.
-It reads the price sensor of **Nord Pool** (HACS `nordpool`), **ENTSO-e** (`entsoe`) or **GE-Spot** (`ge_spot`) in Home Assistant. For GE-Spot, use its price sensor in a currency per kWh (not the cents display).
+It reads the price sensor of **Nord Pool** (HACS `nordpool`), **ENTSO-e** (`entsoe`), **GE-Spot** (`ge_spot`) or **EPEX Spot** (HACS `epex_spot`, for example `sensor.epex_spot_data_total_price`) in Home Assistant. For GE-Spot, use its price sensor in a currency per kWh (not the cents display).
 
 It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.1-inch screens.
 
@@ -9,8 +9,8 @@ It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.
 
 1. In Tessera, open **Plugins** and choose **Electricity price**, or choose **Add with a link** and paste
    `https://github.com/Heronimonimo/tessera-electricity-price`. Tick your screens; each builds once.
-2. In Layout, place the **Electricity price (Nord Pool)**, **Electricity price (ENTSO-e)** or **Electricity price
-   (GE-Spot)** tile from the library's Plugins group, at any size from 1x1 up to the whole page. A tile smaller than
+2. In Layout, place the **Electricity price (Nord Pool)**, **Electricity price (ENTSO-e)**, **Electricity price
+   (GE-Spot)** or **Electricity price (EPEX Spot)** tile from the library's Plugins group, at any size from 1x1 up to the whole page. A tile smaller than
    2x2 shows the price with the meter bar; from 2x2 up it adds the graph.
 3. In the inspector, choose your price sensor. The list holds only the sensors that fit the tile you placed.
 4. Choose the unit, **EUR/kWh** (`0.273`) or **ct/kWh** (`27.3`), and the number of decimals (in ct/kWh at most one).
@@ -45,6 +45,10 @@ the same colours as the bars, with a dot for now. With a feed-in price it is a t
 price. **Fill under the line** adds a faint fill down to zero, or to the feed-in price. The card shows the graph of
 the tile you open it from. **Grid lines** draws solid or dotted lines across the graph at its price labels.
 
+**Next 24 hours only** shows the 24 hours from now instead of today and tomorrow, and takes the meter's range and the
+card's average, lowest and highest from those hours. Until tomorrow's prices are in (in the afternoon), they end at
+midnight.
+
 ## The price in the top bar
 
 Place **Electricity price** on a page's top bar in the editor, under "From plugins". It shows the price now exactly
@@ -63,3 +67,6 @@ first one with a sensor gives it. The top bar needs a price tile on the screen, 
   still show the price of now).
 - The unit comes from the sensor (`EUR/kWh` shows as `€/kWh`). A sensor that reports per MWh is shown per kWh.
 - On the days the clock changes, the graph has 23 or 25 hours, each where it is on the clock.
+- EPEX Spot's total price sensor already holds surcharges and VAT, so its delivery formula can stay empty.
+- The EPEX Spot tile and the German translation come from Nekromonger's
+  [tessera-strompreis](https://github.com/Nekromonger/tessera-strompreis).

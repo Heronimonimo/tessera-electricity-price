@@ -15,7 +15,7 @@
   },
   "app": {
     "name": "Electricity price",
-    "summary": "The electricity price now, with a graph of today and tomorrow, from a Nord Pool, ENTSO-e or GE-Spot sensor.",
+    "summary": "The electricity price now, with a graph of today and tomorrow, from a Nord Pool, ENTSO-e, GE-Spot or EPEX Spot sensor.",
     "tile_name_nordpool": "Electricity price (Nord Pool)",
     "tile_name_entsoe": "Electricity price (ENTSO-e)",
     "tile_name_gespot": "Electricity price (GE-Spot)",
@@ -43,6 +43,9 @@
     "grid_solid": "Solid",
     "grid_dotted": "Dotted",
     "bar_price": "Electricity price",
-    "bar_example": "0.472 €/kWh"
+    "bar_example": "0.472 €/kWh",
+    "tile_name_epex": "Electricity price (EPEX Spot)",
+    "ahead": "Next 24 hours only",
+    "ahead_hint": "The graph shows the 24 hours from now instead of today and tomorrow. Before tomorrow's prices are in, it ends at midnight."
   }
 }
