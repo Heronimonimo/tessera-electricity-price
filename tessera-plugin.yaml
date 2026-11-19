@@ -4,7 +4,7 @@
 # Assistant. The price now
 # of a tile can also stand in the top bar.
 id: electricity_price
-version: 0.13.0
+version: 0.13.1
 api: "0.26"
 icon: flash
 maintainer: Heronimonimo

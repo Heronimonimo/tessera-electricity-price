@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1
+- Nothing changes on the screen. The picture on the Plugins page shows 0.13.0: the price per hour, the cheapest hours
+  marked on the graph and the colours.
+
 ## 0.13.0
 - **Energi Data Service**: a fifth tile, **Electricity price (Energi Data Service)**, for the Danish prices of the HACS
   `energidataservice` integration, in kr/kWh or øre/kWh. With **Next 24 hours only** it fills the hours after the
