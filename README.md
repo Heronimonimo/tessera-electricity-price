@@ -1,7 +1,7 @@
 # Electricity price
 
 The electricity price now as a tile, with the graph of today and tomorrow on bigger tiles and on a card of its own.
-It reads the price sensor of **Nord Pool** (HACS `nordpool`), **ENTSO-e** (`entsoe`), **GE-Spot** (`ge_spot`) or **EPEX Spot** (HACS `epex_spot`, for example `sensor.epex_spot_data_total_price`) in Home Assistant. For GE-Spot, use its price sensor in a currency per kWh (not the cents display).
+It reads the price sensor of **Nord Pool** (HACS `nordpool`), **ENTSO-e** (`entsoe`), **GE-Spot** (`ge_spot`), **EPEX Spot** (HACS `epex_spot`, for example `sensor.epex_spot_data_total_price`) or **Energi Data Service** (HACS `energidataservice`, Danish prices) in Home Assistant. For GE-Spot, use its price sensor in a currency per kWh (not the cents display).
 
 It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.1-inch screens.
 
@@ -10,10 +10,11 @@ It runs on every board Tessera supports (`boards: any`), from the CYD to the 10.
 1. In Tessera, open **Plugins** and choose **Electricity price**, or choose **Add with a link** and paste
    `https://github.com/Heronimonimo/tessera-electricity-price`. Tick your screens; each builds once.
 2. In Layout, place the **Electricity price (Nord Pool)**, **Electricity price (ENTSO-e)**, **Electricity price
-   (GE-Spot)** or **Electricity price (EPEX Spot)** tile from the library's Plugins group, at any size from 1x1 up to the whole page. A tile smaller than
+   (GE-Spot)**, **Electricity price (EPEX Spot)** or **Electricity price (Energi Data Service)** tile from the library's Plugins group, at any size from 1x1 up to the whole page. A tile smaller than
    2x2 shows the price with the meter bar; from 2x2 up it adds the graph.
 3. In the inspector, choose your price sensor. The list holds only the sensors that fit the tile you placed.
 4. Choose the unit, **EUR/kWh** (`0.273`) or **ct/kWh** (`27.3`), and the number of decimals (in ct/kWh at most one).
+   The Energi Data Service tile shows **kr/kWh** (`2.31`) or **øre/kWh** (`231`).
 5. Optionally set your tariff (below).
 6. Tap a bar of the graph to see its price and time slot for a few seconds, on a bigger tile and on the full screen card. On a tile, tap that bar again, or beside the bars, to open the card: the price now, the lowest and highest still to come, the day's average, and the graph.
 
@@ -49,6 +50,35 @@ the tile you open it from. **Grid lines** draws solid or dotted lines across the
 card's average, lowest and highest from those hours. Until tomorrow's prices are in (in the afternoon), they end at
 midnight.
 
+**Graph starts at** shows 24 hours from an hour of your choice, such as 13:00 to 13:00 the next day, in place of today
+and tomorrow, and takes the meter's range and the card's average, lowest and highest from those hours. Before that hour
+the graph starts yesterday at that hour. Only the EPEX Spot integration keeps yesterday's prices; with Nord Pool,
+ENTSO-e, GE-Spot and Energi Data Service those hours stay empty. With an hour set, **Next 24 hours only** has no
+effect.
+
+With **Next 24 hours only**, the Energi Data Service tile fills the hours after the known prices with Carnot's forecast
+in fainter bars, when the forecast is on in the integration's options (with a free Carnot account). The card's lowest
+and highest come from the known prices only.
+
+**Price per** shows every quarter of an hour, as the sensor has them, or each hour as the average of its four quarters.
+The price now, the graph and the card's lowest, highest and average follow it.
+
+## The cheapest hours
+
+**Cheapest hours** (1 to 6) marks the cheapest hours still to come with a dark stroke over their bars, of the known
+prices only. **Cheapest hours as** chooses each on its own, wherever it falls, or the cheapest stretch of that many
+hours in a row, handy for a dishwasher or a car. The card names them over its graph: "Cheapest 02:00 · 03:00 · 13:00",
+or "Cheapest 02:00–05:00". 0 marks none.
+
+## Colours and the name
+
+The bars, the line and the meter are green, amber or red by where a price stands between the day's lowest and highest.
+To colour by prices of your own, open **Colours** in the tile's options and set **Cheap below** and **Too expensive
+above**, in the tile's unit (0.25 for €/kWh, 25 for cents): green below the first, red above the second, amber
+between. With only one of them set, the other colour is not used. With both empty the colours follow the day.
+
+**Show the name** off leaves the tile's name out, so the price has the whole row.
+
 ## The price in the top bar
 
 Place **Electricity price** on a page's top bar in the editor, under "From plugins". It shows the price now exactly
@@ -57,6 +87,9 @@ first one with a sensor gives it. The top bar needs a price tile on the screen, 
 
 ## Good to know
 
+- The cheapest hours, the price per hour, the Energi Data Service tile with its forecast, and the graph drawn in one
+  part come from Andware's [Elpris](https://github.com/Andware/tessera-energidata-price), which was built on this
+  plugin. Thanks!
 - The graph has a bar for every quarter of an hour when the sensor has quarter prices, else for every hour. A tile
   with more than 100 slots (quarters of today and tomorrow) joins neighbouring quarters into one bar; the card shows
   them all. Past bars are grey, the bar now is the accent colour, and the bars to come are green, amber or red by their

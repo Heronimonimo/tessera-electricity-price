@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.13.0
+- **Energi Data Service**: a fifth tile, **Electricity price (Energi Data Service)**, for the Danish prices of the HACS
+  `energidataservice` integration, in kr/kWh or øre/kWh. With **Next 24 hours only** it fills the hours after the
+  known prices with Carnot's forecast in fainter bars, when the forecast is on in the integration. The plugin also
+  speaks Danish now.
+- **Cheapest hours**, a new option on every tile: the graph marks the cheapest 1 to 6 hours still to come with a dark
+  stroke over their bars, and the card names them over the graph ("Cheapest 02:00–05:00"). **Cheapest hours as**
+  chooses each on its own, or the cheapest stretch in a row, for a dishwasher or a car. Off (0) until you set it.
+- **Price per**, a new option on every tile: every quarter of an hour, as before, or each hour as the average of its
+  four quarters. The price now, the graph, the lowest, highest and average follow it.
+- A tile takes half the layout memory it did (8000 in place of 16000), so more tiles fit on a screen: the graph and
+  the meter are each drawn in one part instead of one part per bar and per cell. They look and take taps as before.
+- These four come from Andware's [Elpris](https://github.com/Andware/tessera-energidata-price), built on this plugin.
+- **Show the name**, a new option of the tile: turn it off and the price has the whole row.
+- **Colours**, a new section of the tile's options: set **Cheap below** and **Too expensive above** in the tile's unit,
+  and the bars, the line and the meter are green below the first, red above the second and amber between, on the tile
+  and on its card. Left empty, the colours follow the day's lowest and highest price, as before. On a day when every
+  price is high, the whole graph is then red.
+- **Graph starts at**, a new option of the tile: the graph shows 24 hours from that hour, such as 13:00 to 13:00 the
+  next day, in place of today and tomorrow, on the tile and on its card. Before that hour it starts yesterday at that
+  hour. Only EPEX Spot keeps yesterday's prices; with the others those hours stay empty. After Nekromonger's
+  tessera-strompreis.
+- Needs Tessera 0.4.98 or later (plugin API 0.26).
+
 ## 0.12.0
 - EPEX Spot: a fourth tile, **Electricity price (EPEX Spot)**, for the sensor of the HACS `epex_spot` integration. Its
   one list of yesterday, today and tomorrow is cut into today and tomorrow by the start of its slots. From

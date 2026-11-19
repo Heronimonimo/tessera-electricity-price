@@ -4,8 +4,8 @@
 # Assistant. The price now
 # of a tile can also stand in the top bar.
 id: electricity_price
-version: 0.12.0
-api: "0.12"
+version: 0.13.0
+api: "0.26"
 icon: flash
 maintainer: Heronimonimo
 license: MIT
@@ -26,7 +26,7 @@ tiles:
     name: tile_name_nordpool
     icon: flash
     sizes: { min: 1x1, max: 9x9, full: true }
-    memory: 16000
+    memory: 8000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [raw_today]
@@ -66,11 +66,32 @@ tiles:
           - { value: solid, label: grid_solid }
           - { value: dotted, label: grid_dotted }
       - { id: ahead, kind: toggle, default: false, label: ahead, hint: ahead_hint }
+      - { id: start, kind: number, optional: true, min: 0, max: 23, step: 1, label: start, hint: start_hint }
+      - id: resolution
+        kind: choice
+        default: quarter
+        label: resolution
+        hint: resolution_hint
+        choices:
+          - { value: quarter, label: resolution_quarter }
+          - { value: hour, label: resolution_hour }
+      - { id: cheap, kind: number, min: 0, max: 6, step: 1, default: 0, label: cheap, hint: cheap_hint }
+      - id: cheap_mode
+        kind: choice
+        default: single
+        label: cheap_mode
+        hint: cheap_mode_hint
+        choices:
+          - { value: single, label: cheap_single }
+          - { value: block, label: cheap_block }
+      - { id: show_name, kind: toggle, default: true, label: show_name, hint: show_name_hint }
+      - { id: cheap_below, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: cheap_below, hint: cheap_below_hint }
+      - { id: expensive_above, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: expensive_above, hint: expensive_above_hint }
   - id: entsoe
     name: tile_name_entsoe
     icon: flash
     sizes: { min: 1x1, max: 9x9, full: true }
-    memory: 16000
+    memory: 8000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [prices_today]
@@ -110,11 +131,32 @@ tiles:
           - { value: solid, label: grid_solid }
           - { value: dotted, label: grid_dotted }
       - { id: ahead, kind: toggle, default: false, label: ahead, hint: ahead_hint }
+      - { id: start, kind: number, optional: true, min: 0, max: 23, step: 1, label: start, hint: start_hint }
+      - id: resolution
+        kind: choice
+        default: quarter
+        label: resolution
+        hint: resolution_hint
+        choices:
+          - { value: quarter, label: resolution_quarter }
+          - { value: hour, label: resolution_hour }
+      - { id: cheap, kind: number, min: 0, max: 6, step: 1, default: 0, label: cheap, hint: cheap_hint }
+      - id: cheap_mode
+        kind: choice
+        default: single
+        label: cheap_mode
+        hint: cheap_mode_hint
+        choices:
+          - { value: single, label: cheap_single }
+          - { value: block, label: cheap_block }
+      - { id: show_name, kind: toggle, default: true, label: show_name, hint: show_name_hint }
+      - { id: cheap_below, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: cheap_below, hint: cheap_below_hint }
+      - { id: expensive_above, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: expensive_above, hint: expensive_above_hint }
   - id: gespot
     name: tile_name_gespot
     icon: flash
     sizes: { min: 1x1, max: 9x9, full: true }
-    memory: 16000
+    memory: 8000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [today_interval_prices]
@@ -154,11 +196,32 @@ tiles:
           - { value: solid, label: grid_solid }
           - { value: dotted, label: grid_dotted }
       - { id: ahead, kind: toggle, default: false, label: ahead, hint: ahead_hint }
+      - { id: start, kind: number, optional: true, min: 0, max: 23, step: 1, label: start, hint: start_hint }
+      - id: resolution
+        kind: choice
+        default: quarter
+        label: resolution
+        hint: resolution_hint
+        choices:
+          - { value: quarter, label: resolution_quarter }
+          - { value: hour, label: resolution_hour }
+      - { id: cheap, kind: number, min: 0, max: 6, step: 1, default: 0, label: cheap, hint: cheap_hint }
+      - id: cheap_mode
+        kind: choice
+        default: single
+        label: cheap_mode
+        hint: cheap_mode_hint
+        choices:
+          - { value: single, label: cheap_single }
+          - { value: block, label: cheap_block }
+      - { id: show_name, kind: toggle, default: true, label: show_name, hint: show_name_hint }
+      - { id: cheap_below, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: cheap_below, hint: cheap_below_hint }
+      - { id: expensive_above, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: expensive_above, hint: expensive_above_hint }
   - id: epex
     name: tile_name_epex
     icon: flash
     sizes: { min: 1x1, max: 9x9, full: true }
-    memory: 16000
+    memory: 8000
     domains: [sensor]
     attributes: [unit_of_measurement]
     has_attributes: [data]
@@ -200,6 +263,96 @@ tiles:
           - { value: solid, label: grid_solid }
           - { value: dotted, label: grid_dotted }
       - { id: ahead, kind: toggle, default: false, label: ahead, hint: ahead_hint }
+      - { id: start, kind: number, optional: true, min: 0, max: 23, step: 1, label: start, hint: start_hint }
+      - id: resolution
+        kind: choice
+        default: quarter
+        label: resolution
+        hint: resolution_hint
+        choices:
+          - { value: quarter, label: resolution_quarter }
+          - { value: hour, label: resolution_hour }
+      - { id: cheap, kind: number, min: 0, max: 6, step: 1, default: 0, label: cheap, hint: cheap_hint }
+      - id: cheap_mode
+        kind: choice
+        default: single
+        label: cheap_mode
+        hint: cheap_mode_hint
+        choices:
+          - { value: single, label: cheap_single }
+          - { value: block, label: cheap_block }
+      - { id: show_name, kind: toggle, default: true, label: show_name, hint: show_name_hint }
+      - { id: cheap_below, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: cheap_below, hint: cheap_below_hint }
+      - { id: expensive_above, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: expensive_above, hint: expensive_above_hint }
+  - id: energidataservice
+    name: tile_name_eds
+    icon: flash
+    sizes: { min: 1x1, max: 9x9, full: true }
+    memory: 8000
+    domains: [sensor]
+    attributes: [unit_of_measurement]
+    has_attributes: [raw_today, today_mean]
+    # Today's and tomorrow's lists, and Carnot's forecast of the hours after them (when it is on in the integration),
+    # which the graph of the next 24 hours shows in fainter bars. After Andware's Elpris (Energi Data Service).
+    fields:
+      today: { path: "raw_today[*].price", as: numbers }
+      tomorrow: { path: "raw_tomorrow[*].price", as: numbers }
+      outlook: { path: "forecast[*].price", as: numbers }
+      outlook_start: { path: "forecast[0].hour", as: epoch }
+    example: tile_example
+    preview: { title: "{name}", value: "{state} {unit_of_measurement}" }
+    options:
+      - id: unit
+        kind: choice
+        default: eur
+        label: unit
+        hint: unit_hint
+        choices:
+          - { value: eur, label: unit_kr }
+          - { value: cents, label: unit_ore }
+      - { id: fixed, kind: number, min: 0, max: 4, step: 1, default: 3, label: decimals, hint: decimals_hint }
+      - { id: delivery, kind: text, default: "", label: delivery, hint: delivery_hint }
+      - { id: feed_in, kind: text, default: "", label: feed_in, hint: feed_in_hint }
+      - id: graph
+        kind: choice
+        default: bars
+        label: graph
+        hint: graph_hint
+        choices:
+          - { value: bars, label: graph_bars }
+          - { value: line, label: graph_line }
+      - { id: fill, kind: toggle, default: true, label: fill, hint: fill_hint }
+      - id: grid
+        kind: choice
+        default: none
+        label: grid
+        hint: grid_hint
+        choices:
+          - { value: none, label: grid_none }
+          - { value: solid, label: grid_solid }
+          - { value: dotted, label: grid_dotted }
+      - { id: ahead, kind: toggle, default: false, label: ahead, hint: ahead_hint }
+      - { id: start, kind: number, optional: true, min: 0, max: 23, step: 1, label: start, hint: start_hint }
+      - id: resolution
+        kind: choice
+        default: quarter
+        label: resolution
+        hint: resolution_hint
+        choices:
+          - { value: quarter, label: resolution_quarter }
+          - { value: hour, label: resolution_hour }
+      - { id: cheap, kind: number, min: 0, max: 6, step: 1, default: 0, label: cheap, hint: cheap_hint }
+      - id: cheap_mode
+        kind: choice
+        default: single
+        label: cheap_mode
+        hint: cheap_mode_hint
+        choices:
+          - { value: single, label: cheap_single }
+          - { value: block, label: cheap_block }
+      - { id: show_name, kind: toggle, default: true, label: show_name, hint: show_name_hint }
+      - { id: cheap_below, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: cheap_below, hint: cheap_below_hint }
+      - { id: expensive_above, kind: number, optional: true, group: group_colours, min: -1000, max: 1000, step: 0.01, label: expensive_above, hint: expensive_above_hint }
 
 cards:
   - { id: prices, name: card_name, wide: true }
