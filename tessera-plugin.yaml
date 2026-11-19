@@ -14,7 +14,7 @@ topics: [energy]
 requires:
   esphome: 2026.6.2
 boards: any
-flash_kb: 16
+flash_kb: 30
 
 # The price now of a tile on the screen, with that tile's sensor, formula and unit.
 bar_items:
